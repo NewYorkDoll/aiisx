@@ -1,39 +1,28 @@
 import { useEffect, useState } from 'react'
-import { Eye, EyeOff, FilePenLine, KeyRound, RefreshCw } from 'lucide-react'
-import { Link } from '@tanstack/react-router'
+import { Eye, EyeOff, FilePenLine, LogOut } from 'lucide-react'
+import { Link, useNavigate } from '@tanstack/react-router'
 import { Prompt, PromptInput } from '../components/Prompt'
-import { getAdminToken, getPosts, setAdminToken, updatePost } from '../lib/api'
+import { getAuthStatus, getPosts, logout, updatePost } from '../lib/api'
 import type { BlogPost } from '../../shared/types'
 
 export default function Manage() {
   const [posts, setPosts] = useState<BlogPost[]>([])
-  const [token, setToken] = useState(getAdminToken())
   const [message, setMessage] = useState('')
   const [loading, setLoading] = useState(true)
   const [busySlug, setBusySlug] = useState('')
-
-  async function load() {
-    try { setPosts(await getPosts('all')) }
-    catch { setMessage('无法读取文章，请检查管理员令牌或 API 服务') }
-    finally { setLoading(false) }
-  }
+  const navigate = useNavigate()
 
   useEffect(() => {
     let active = true
-    getPosts('all')
-      .then((items) => { if (active) setPosts(items) })
+    getAuthStatus()
+      .then(async (auth) => { if (!auth.authenticated) { await navigate({ to: '/login' }); return }; return getPosts('all') })
+      .then((items) => { if (active && items) setPosts(items) })
       .catch(() => { if (active) setMessage('无法读取文章，请检查管理员令牌或 API 服务') })
       .finally(() => { if (active) setLoading(false) })
     return () => { active = false }
-  }, [])
+  }, [navigate])
 
-  async function connect(event: React.FormEvent) {
-    event.preventDefault()
-    setAdminToken(token)
-    setLoading(true)
-    setMessage('')
-    await load()
-  }
+  async function signOut() { await logout(); await navigate({ to: '/login' }) }
 
   async function toggleStatus(post: BlogPost) {
     setBusySlug(post.slug)
@@ -65,11 +54,7 @@ export default function Manage() {
             <span><strong>{draftCount}</strong> drafts</span>
           </div>
         </div>
-        <form className="admin-token" onSubmit={connect}>
-          <KeyRound size={14} aria-hidden="true" />
-          <input type="password" value={token} onChange={(event) => setToken(event.target.value)} placeholder="admin token (optional locally)" aria-label="管理员令牌" />
-          <button type="submit" title="重新连接"><RefreshCw size={14} /><span>connect</span></button>
-        </form>
+        <div className="admin-session"><span>authenticated session / 7 days</span><button type="button" onClick={() => void signOut()} title="退出登录"><LogOut size={14} /><span>sign out</span></button></div>
       </Prompt>
       <Prompt command="ls journal/* --all">
         <div className="manage-list">

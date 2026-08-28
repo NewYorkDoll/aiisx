@@ -5,6 +5,8 @@ import Write from './routes/Write'
 import Games from './routes/Games'
 import Fitness from './routes/Fitness'
 import Manage from './routes/Manage'
+import Article from './routes/Article'
+import Login from './routes/Login'
 import './App.css'
 
 function Shell() {
@@ -16,9 +18,11 @@ const journalRoute = createRoute({ getParentRoute: () => rootRoute, path: '/', c
 const writeRoute = createRoute({ getParentRoute: () => rootRoute, path: '/write', component: Write })
 const editRoute = createRoute({ getParentRoute: () => rootRoute, path: '/write/$slug', component: Write })
 const manageRoute = createRoute({ getParentRoute: () => rootRoute, path: '/journal/manage', component: Manage })
+const articleRoute = createRoute({ getParentRoute: () => rootRoute, path: '/journal/$slug', component: Article })
+const loginRoute = createRoute({ getParentRoute: () => rootRoute, path: '/login', component: Login })
 const gamesRoute = createRoute({ getParentRoute: () => rootRoute, path: '/game-are-life', component: Games })
 const fitnessRoute = createRoute({ getParentRoute: () => rootRoute, path: '/fitness', component: Fitness })
-const routeTree = rootRoute.addChildren([journalRoute, writeRoute, editRoute, manageRoute, gamesRoute, fitnessRoute])
+const routeTree = rootRoute.addChildren([journalRoute, writeRoute, editRoute, manageRoute, articleRoute, loginRoute, gamesRoute, fitnessRoute])
 const router = createRouter({ routeTree })
 declare module '@tanstack/react-router' { interface Register { router: typeof router } }
 export default function App() { return <RouterProvider router={router} /> }
