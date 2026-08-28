@@ -9,7 +9,7 @@ const cacheTtl = 15 * 60 * 1000
 async function steamFetch<T>(path: string, key: string, steamId: string) {
   const url = new URL(`https://api.steampowered.com${path}`)
   url.searchParams.set('key', key)
-  url.searchParams.set('steamid', steamId)
+  url.searchParams.set(path.startsWith('/ISteamUser/') ? 'steamids' : 'steamid', steamId)
   url.searchParams.set('format', 'json')
   const response = await fetch(url, { signal: AbortSignal.timeout(12_000) })
   if (!response.ok) throw new Error(`Steam ${path.split('/').filter(Boolean)[0]} returned ${response.status}`)
