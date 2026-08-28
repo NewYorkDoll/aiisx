@@ -62,4 +62,35 @@ export const repository = {
     memoryPosts.unshift(post)
     return post
   },
+  async update(slug: string, input: PostInput) {
+    const existing = await repository.get(slug)
+    if (!existing) return null
+
+    const timestamp = new Date()
+    const post: BlogPost = {
+      ...existing,
+      ...input,
+      excerpt: excerpt(input.content),
+      updatedAt: timestamp.toISOString(),
+      publishedAt: input.status === 'published' ? existing.publishedAt || timestamp.toISOString() : null,
+    }
+
+    await ensureSchema()
+    if (db) {
+      await db.update(journalPosts).set({
+        title: post.title,
+        content: post.content,
+        excerpt: post.excerpt,
+        mood: post.mood,
+        status: post.status,
+        updatedAt: timestamp,
+        publishedAt: post.publishedAt ? new Date(post.publishedAt) : null,
+      }).where(eq(journalPosts.slug, slug))
+      return post
+    }
+
+    const index = memoryPosts.findIndex((item) => item.slug === slug)
+    memoryPosts[index] = post
+    return post
+  },
 }

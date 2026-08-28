@@ -9,6 +9,7 @@ import { getStoredFitnessSnapshot, getStoredSteamSnapshot, getStoredXboxSnapshot
 
 const app = new Hono()
 app.use('/api/*', cors())
+const isAdmin = (token: string | undefined) => !process.env.ADMIN_TOKEN || token === process.env.ADMIN_TOKEN
 app.get('/api/health', (c) => c.json({ ok: true, service: 'aiisx-api' }))
 app.get('/api/games', async (c) => c.json({ items: await listGames().catch(() => []) }))
 app.get('/api/fitness', async (c) => c.json(await getStoredFitnessSnapshot().catch(() => null) || { weight: null, weightUnit: 'kg', sessions: 0, minutes: 0, planName: null, todayName: null, fetchedAt: new Date().toISOString(), recentSets: [], message: 'no fitness sync yet — run npm run sync:platforms' }))
@@ -17,18 +18,26 @@ app.get('/api/xbox', async (c) => c.json(await getStoredXboxSnapshot().catch(() 
 app.get('/api/posts', async (c) => {
   const rawStatus = c.req.query('status') || 'published'
   const status = rawStatus === 'draft' || rawStatus === 'all' ? rawStatus : 'published'
+  if (status !== 'published' && !isAdmin(c.req.header('x-admin-token'))) return c.json({ message: 'Unauthorized' }, 401)
   return c.json({ items: await repository.list(status) })
 })
 app.get('/api/posts/:slug', async (c) => {
   const post = await repository.get(c.req.param('slug'))
+  if (post?.status === 'draft' && !isAdmin(c.req.header('x-admin-token'))) return c.json({ message: 'Unauthorized' }, 401)
   return post ? c.json(post) : c.json({ message: 'Post not found' }, 404)
 })
 app.post('/api/posts', async (c) => {
-  const adminToken = process.env.ADMIN_TOKEN
-  if (adminToken && c.req.header('x-admin-token') !== adminToken) return c.json({ message: 'Unauthorized' }, 401)
+  if (!isAdmin(c.req.header('x-admin-token'))) return c.json({ message: 'Unauthorized' }, 401)
   const parsed = postInputSchema.safeParse(await c.req.json())
   if (!parsed.success) return c.json({ message: 'Invalid post', issues: parsed.error.flatten() }, 400)
   return c.json(await repository.create(parsed.data), 201)
+})
+app.patch('/api/posts/:slug', async (c) => {
+  if (!isAdmin(c.req.header('x-admin-token'))) return c.json({ message: 'Unauthorized' }, 401)
+  const parsed = postInputSchema.safeParse(await c.req.json())
+  if (!parsed.success) return c.json({ message: 'Invalid post', issues: parsed.error.flatten() }, 400)
+  const post = await repository.update(c.req.param('slug'), parsed.data)
+  return post ? c.json(post) : c.json({ message: 'Post not found' }, 404)
 })
 
 const port = Number(process.env.API_PORT || 8787)
