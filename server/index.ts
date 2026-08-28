@@ -7,6 +7,7 @@ import { repository } from './repository'
 import { listGames } from './db'
 import { getFitnessSnapshot } from './keepstrong'
 import { getSteamSnapshot } from './steam'
+import { getXboxSnapshot } from './xbox'
 
 const app = new Hono()
 app.use('/api/*', cors())
@@ -14,6 +15,7 @@ app.get('/api/health', (c) => c.json({ ok: true, service: 'aiisx-api' }))
 app.get('/api/games', async (c) => c.json({ items: await listGames().catch(() => []) }))
 app.get('/api/fitness', async (c) => c.json(await getFitnessSnapshot().catch(() => ({ weight: null, weightUnit: 'kg', sessions: 0, minutes: 0, planName: null, todayName: null, fetchedAt: new Date().toISOString() }))))
 app.get('/api/steam', async (c) => c.json(await getSteamSnapshot()))
+app.get('/api/xbox', async (c) => c.json(await getXboxSnapshot()))
 app.get('/api/posts', async (c) => {
   const rawStatus = c.req.query('status') || 'published'
   const status = rawStatus === 'draft' || rawStatus === 'all' ? rawStatus : 'published'

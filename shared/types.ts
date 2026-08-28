@@ -47,6 +47,31 @@ export type SteamSnapshot = {
   message?: string
 }
 
+export type XboxGame = {
+  titleId: string
+  name: string
+  playedAt: string | null
+  cover: string | null
+  gamerscore: number
+  achievements: number
+}
+
+export type XboxSnapshot = {
+  configured: boolean
+  profile: {
+    xuid: string
+    gamertag: string
+    displayName: string | null
+    avatar: string | null
+    gamerscore: number
+  } | null
+  state: 'Online' | 'Offline' | 'Unknown'
+  currentGame: string | null
+  games: XboxGame[]
+  fetchedAt: string
+  message?: string
+}
+
 export type FitnessSnapshot = {
   weight: number | null
   weightUnit: string

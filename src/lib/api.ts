@@ -1,4 +1,4 @@
-import type { BlogPost, FitnessSnapshot, GameRecord, PostInput, SteamSnapshot } from '../../shared/types'
+import type { BlogPost, FitnessSnapshot, GameRecord, PostInput, SteamSnapshot, XboxSnapshot } from '../../shared/types'
 
 const API_URL = import.meta.env.VITE_API_URL || ''
 
@@ -30,4 +30,10 @@ export async function getSteam() {
   const response = await fetch(`${API_URL}/api/steam`)
   if (!response.ok) throw new Error('Unable to load Steam')
   return await response.json() as SteamSnapshot
+}
+
+export async function getXbox() {
+  const response = await fetch(`${API_URL}/api/xbox`)
+  if (!response.ok) throw new Error('Unable to load Xbox')
+  return await response.json() as XboxSnapshot
 }
