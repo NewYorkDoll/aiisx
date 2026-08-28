@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from '@tanstack/react-router'
 import { Prompt, PromptInput } from '../components/Prompt'
-import { createPost, getPost, updatePost } from '../lib/api'
+import { createPost, getAuthStatus, getPost, updatePost } from '../lib/api'
 
 export default function Write() {
   const navigate = useNavigate()
@@ -13,6 +13,10 @@ export default function Write() {
   const [saving, setSaving] = useState(false)
   const [loading, setLoading] = useState(Boolean(slug))
   const [message, setMessage] = useState('')
+
+  useEffect(() => {
+    getAuthStatus().then((auth) => { if (!auth.authenticated) void navigate({ to: '/login' }) }).catch(() => setMessage('API 服务不可用'))
+  }, [navigate])
 
   useEffect(() => {
     if (!slug) return
