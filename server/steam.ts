@@ -12,16 +12,24 @@ async function steamFetch<T>(path: string, key: string, steamId: string) {
   url.searchParams.set('steamid', steamId)
   url.searchParams.set('format', 'json')
   const response = await fetch(url, { signal: AbortSignal.timeout(12_000) })
-  if (!response.ok) throw new Error(`Steam API returned ${response.status}`)
+  if (!response.ok) throw new Error(`Steam ${path.split('/').filter(Boolean)[0]} returned ${response.status}`)
   return await response.json() as T
+}
+
+function normalizeSteamId(value: string) {
+  return value.match(/\d{17}/)?.[0] || null
 }
 
 export async function getSteamSnapshot(): Promise<SteamSnapshot> {
   const key = process.env.STEAM_API_KEY?.trim()
-  const steamId = process.env.STEAM_ID?.trim()
+  const rawSteamId = process.env.STEAM_ID?.trim()
+  const steamId = rawSteamId ? normalizeSteamId(rawSteamId) : null
   const fetchedAt = new Date().toISOString()
-  if (!key || !steamId) {
+  if (!key || !rawSteamId) {
     return { configured: false, profile: null, playTimeMinutes: 0, games: [], fetchedAt, message: 'set STEAM_API_KEY and STEAM_ID to connect Steam' }
+  }
+  if (!steamId) {
+    return { configured: true, profile: null, playTimeMinutes: 0, games: [], fetchedAt, message: 'STEAM_ID must contain a 17-digit SteamID64' }
   }
 
   const cached = cache.get(steamId)
