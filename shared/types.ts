@@ -81,15 +81,14 @@ export type FitnessSnapshot = {
   planName: string | null
   todayName: string | null
   fetchedAt: string
-  recentSets: FitnessSetSummary[]
+  recentActions: FitnessActionSummary[]
 }
 
-export type FitnessSetSummary = {
+export type FitnessActionSummary = {
   id: string
   planName: string
   actionName: string
   date: string
-  reps: string
-  setNumber: number
+  sets: number
   sequence: number
 }

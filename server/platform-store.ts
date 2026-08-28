@@ -18,6 +18,7 @@ async function ensureSchema() {
       pool.query('CREATE TABLE IF NOT EXISTS fitness_snapshot (id TINYINT PRIMARY KEY, weight DECIMAL(6,2) NULL, weight_unit VARCHAR(16) NOT NULL, sessions INT NOT NULL, minutes INT NOT NULL, plan_name VARCHAR(255) NULL, today_name VARCHAR(255) NULL, fetched_at DATETIME NOT NULL)'),
       pool.query('CREATE TABLE IF NOT EXISTS fitness_recent_session (id VARCHAR(128) PRIMARY KEY, name VARCHAR(255) NOT NULL, session_date VARCHAR(32) NOT NULL, sets INT NOT NULL, action_count INT NOT NULL DEFAULT 0, action_names TEXT NULL, synced_at DATETIME NOT NULL)'),
       pool.query('CREATE TABLE IF NOT EXISTS fitness_recent_set (id VARCHAR(128) PRIMARY KEY, plan_name VARCHAR(255) NOT NULL, action_name VARCHAR(255) NOT NULL, session_date VARCHAR(32) NOT NULL, reps VARCHAR(32) NOT NULL, set_number INT NOT NULL, set_sequence INT NOT NULL, synced_at DATETIME NOT NULL)'),
+      pool.query('CREATE TABLE IF NOT EXISTS fitness_recent_action (id VARCHAR(128) PRIMARY KEY, plan_name VARCHAR(255) NOT NULL, action_name VARCHAR(255) NOT NULL, session_date VARCHAR(32) NOT NULL, set_count INT NOT NULL, action_sequence INT NOT NULL, synced_at DATETIME NOT NULL)'),
     ]).then(async () => {
       await pool.query('ALTER TABLE xbox_game_activity ADD COLUMN minutes INT NULL').catch(() => undefined)
       await pool.query('ALTER TABLE fitness_recent_session ADD COLUMN action_count INT NOT NULL DEFAULT 0').catch(() => undefined)
@@ -73,8 +74,8 @@ export async function saveFitnessSnapshot(snapshot: FitnessSnapshot) {
   await ensureSchema()
   if (!pool) return
   await pool.execute('INSERT INTO fitness_snapshot (id, weight, weight_unit, sessions, minutes, plan_name, today_name, fetched_at) VALUES (1, ?, ?, ?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE weight=VALUES(weight), weight_unit=VALUES(weight_unit), sessions=VALUES(sessions), minutes=VALUES(minutes), plan_name=VALUES(plan_name), today_name=VALUES(today_name), fetched_at=VALUES(fetched_at)', [snapshot.weight, snapshot.weightUnit, snapshot.sessions, snapshot.minutes, snapshot.planName, snapshot.todayName, asDate(snapshot.fetchedAt)])
-  await pool.execute('DELETE FROM fitness_recent_set')
-  for (const set of snapshot.recentSets) await pool.execute('INSERT INTO fitness_recent_set (id, plan_name, action_name, session_date, reps, set_number, set_sequence, synced_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)', [set.id, set.planName, set.actionName, set.date, set.reps, set.setNumber, set.sequence, asDate(snapshot.fetchedAt)])
+  await pool.execute('DELETE FROM fitness_recent_action')
+  for (const action of snapshot.recentActions) await pool.execute('INSERT INTO fitness_recent_action (id, plan_name, action_name, session_date, set_count, action_sequence, synced_at) VALUES (?, ?, ?, ?, ?, ?, ?)', [action.id, action.planName, action.actionName, action.date, action.sets, action.sequence, asDate(snapshot.fetchedAt)])
 }
 
 export async function getStoredFitnessSnapshot() {
@@ -83,6 +84,6 @@ export async function getStoredFitnessSnapshot() {
   const [rows] = await pool.query('SELECT weight, weight_unit, sessions, minutes, plan_name, today_name, fetched_at FROM fitness_snapshot WHERE id=1 LIMIT 1')
   const row = (rows as Array<{ weight: number | null; weight_unit: string; sessions: number; minutes: number; plan_name: string | null; today_name: string | null; fetched_at: Date }>)[0]
   if (!row) return null
-  const [sets] = await pool.query('SELECT id, plan_name, action_name, session_date, reps, set_number, set_sequence FROM fitness_recent_set ORDER BY session_date DESC, set_sequence DESC LIMIT 10')
-  return { weight: null, weightUnit: row.weight_unit, sessions: row.sessions, minutes: row.minutes, planName: row.plan_name, todayName: row.today_name, fetchedAt: asIso(row.fetched_at), recentSets: (sets as Array<{ id: string; plan_name: string; action_name: string; session_date: string; reps: string; set_number: number; set_sequence: number }>).map((set) => ({ id: set.id, planName: set.plan_name, actionName: set.action_name, date: set.session_date, reps: set.reps, setNumber: set.set_number, sequence: set.set_sequence })) } satisfies FitnessSnapshot
+  const [actions] = await pool.query('SELECT id, plan_name, action_name, session_date, set_count, action_sequence FROM fitness_recent_action ORDER BY session_date DESC, action_sequence DESC LIMIT 10')
+  return { weight: null, weightUnit: row.weight_unit, sessions: row.sessions, minutes: row.minutes, planName: row.plan_name, todayName: row.today_name, fetchedAt: asIso(row.fetched_at), recentActions: (actions as Array<{ id: string; plan_name: string; action_name: string; session_date: string; set_count: number; action_sequence: number }>).map((action) => ({ id: action.id, planName: action.plan_name, actionName: action.action_name, date: action.session_date, sets: action.set_count, sequence: action.action_sequence })) } satisfies FitnessSnapshot
 }
