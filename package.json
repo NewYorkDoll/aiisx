@@ -7,6 +7,7 @@
     "dev": "vite",
     "api": "tsx server/index.ts",
     "auth:switch": "tsx server/auth-switch.ts",
+    "auth:xbox": "tsx server/auth-xbox.ts",
     "sync:games": "tsx server/sync-games.ts",
     "dev:all": "concurrently \"npm run api\" \"npm run dev\"",
     "typecheck:server": "tsc --noEmit -p tsconfig.server.json",
@@ -27,6 +28,7 @@
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
     "undici": "^7.29.0",
+    "xal-node": "^1.1.5",
     "zod": "^4.4.3"
   },
   "devDependencies": {
