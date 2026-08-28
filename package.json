@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite",
     "api": "tsx server/index.ts",
+    "sync:games": "tsx server/sync-games.ts",
     "dev:all": "concurrently \"npm run api\" \"npm run dev\"",
     "typecheck:server": "tsc --noEmit -p tsconfig.server.json",
     "build": "tsc -b && vite build",
@@ -15,7 +16,9 @@
   "dependencies": {
     "@hono/node-server": "^2.1.1",
     "@tanstack/react-router": "^1.170.32",
+    "cheerio": "^1.2.0",
     "clsx": "^2.1.1",
+    "dotenv": "^17.4.2",
     "drizzle-orm": "^0.45.2",
     "hono": "^4.13.5",
     "lucide-react": "^1.34.0",
