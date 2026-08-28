@@ -1,6 +1,6 @@
 import type { BlogPost, FitnessSnapshot, GameRecord, PostInput } from '../../shared/types'
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8787'
+const API_URL = import.meta.env.VITE_API_URL || ''
 
 export async function getPosts() {
   const response = await fetch(`${API_URL}/api/posts`)
