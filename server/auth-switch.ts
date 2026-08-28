@@ -18,7 +18,13 @@ async function main() {
   const redirectUrl = (await rl.question('redirect URL: ')).trim()
   rl.close()
   let code: string | null = null
-  try { code = new URL(redirectUrl).searchParams.get('de') } catch { code = redirectUrl.match(/[?&]de=([^&]+)/)?.[1] || null }
+  try {
+    const url = new URL(redirectUrl)
+    const fragment = new URLSearchParams(url.hash.replace(/^#/, ''))
+    code = url.searchParams.get('session_token_code') || url.searchParams.get('de') || fragment.get('session_token_code') || fragment.get('de')
+  } catch {
+    code = redirectUrl.match(/[?#&](?:session_token_code|de)=([^&]+)/)?.[1] || null
+  }
   if (!code) throw new Error('The pasted URL does not contain a de parameter.')
   const body = new URLSearchParams({ client_id: clientId, session_token_code: decodeURIComponent(code), session_token_code_verifier: verifier })
   const response = await fetch('https://accounts.nintendo.com/connect/1.0.0/api/session_token', { method: 'POST', headers: { 'User-Agent': userAgent, Accept: 'application/json', 'Content-Type': 'application/x-www-form-urlencoded' }, body })
