@@ -20,7 +20,7 @@ function normalizeSteamId(value: string) {
   return value.match(/\d{17}/)?.[0] || null
 }
 
-export async function getSteamSnapshot(): Promise<SteamSnapshot> {
+export async function fetchSteamSnapshot(): Promise<SteamSnapshot> {
   const key = process.env.STEAM_API_KEY?.trim()
   const rawSteamId = process.env.STEAM_ID?.trim()
   const steamId = rawSteamId ? normalizeSteamId(rawSteamId) : null

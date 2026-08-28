@@ -27,7 +27,7 @@ function setting(profile: Profile, id: string) {
   return profile.settings?.find((item) => item.id === id)?.value || ''
 }
 
-export async function getXboxSnapshot(): Promise<XboxSnapshot> {
+export async function fetchXboxSnapshot(): Promise<XboxSnapshot> {
   const tokenFile = process.env.XBOX_TOKEN_FILE || '.xbox.tokens.json'
   const fetchedAt = new Date().toISOString()
   const store = new TokenStore()

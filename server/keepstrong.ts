@@ -1,7 +1,6 @@
 import type { FitnessSnapshot } from '../shared/types'
 
 const baseUrl = process.env.KEEPSTRONG_BASE_URL || 'https://lianlian.gzyunke.cn'
-const apiKey = process.env.KEEPSTRONG_API_KEY
 const skillVersion = '1.24.0'
 
 type Profile = { weight: number | null; weightUnit: string }
@@ -9,6 +8,7 @@ type RecordItem = { status?: string; durationSeconds?: number }
 type Plan = { name?: string; today?: { schedule?: { name?: string } } }
 
 async function getJson<T>(path: string, params?: Record<string, string | number>) {
+  const apiKey = process.env.KEEPSTRONG_API_KEY
   if (!apiKey) return null
   const url = new URL(path, baseUrl)
   Object.entries(params || {}).forEach(([key, value]) => url.searchParams.set(key, String(value)))
@@ -19,7 +19,8 @@ async function getJson<T>(path: string, params?: Record<string, string | number>
 
 function dayString(date: Date) { return `${date.getFullYear()}${String(date.getMonth() + 1).padStart(2, '0')}${String(date.getDate()).padStart(2, '0')}` }
 
-export async function getFitnessSnapshot(): Promise<FitnessSnapshot> {
+export async function fetchFitnessSnapshot(): Promise<FitnessSnapshot> {
+  const apiKey = process.env.KEEPSTRONG_API_KEY
   if (!apiKey) return { weight: null, weightUnit: 'kg', sessions: 0, minutes: 0, planName: null, todayName: null, fetchedAt: new Date().toISOString() }
   const start = new Date(); start.setDate(start.getDate() - 30)
   const [profile, recordsResponse, plansResponse] = await Promise.all([
