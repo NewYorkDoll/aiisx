@@ -1,0 +1,37 @@
+import { z } from 'zod'
+
+export const postInputSchema = z.object({
+  title: z.string().trim().min(1).max(120),
+  content: z.string().trim().min(1).max(30_000),
+  mood: z.string().trim().max(32).default('curious'),
+  status: z.enum(['draft', 'published']).default('draft'),
+})
+
+export type PostInput = z.infer<typeof postInputSchema>
+
+export type BlogPost = PostInput & {
+  id: string
+  slug: string
+  excerpt: string
+  createdAt: string
+  updatedAt: string
+  publishedAt: string | null
+}
+
+export type GameRecord = {
+  id: string
+  title: string
+  cover: string | null
+  playedAt: string
+  minutes: number
+}
+
+export type FitnessSnapshot = {
+  weight: number | null
+  weightUnit: string
+  sessions: number
+  minutes: number
+  planName: string | null
+  todayName: string | null
+  fetchedAt: string
+}
