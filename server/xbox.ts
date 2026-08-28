@@ -11,15 +11,16 @@ type TitleHistoryResponse = { titles?: Title[] }
 const cache = new Map<string, { expiresAt: number; value: XboxSnapshot }>()
 const cacheTtl = 15 * 60 * 1000
 
-async function xboxFetch<T>(path: string, token: WebToken) {
+async function xboxFetch<T>(path: string, token: WebToken, contractVersion = 3) {
   const response = await fetch(`https://${path}`, {
     headers: {
       Authorization: `XBL3.0 x=${token.data.DisplayClaims.xui[0].uhs};${token.data.Token}`,
-      'x-xbl-contract-version': '3',
+      'x-xbl-contract-version': String(contractVersion),
+      'Accept-Language': 'en-US',
     },
     signal: AbortSignal.timeout(15_000),
   })
-  if (!response.ok) throw new Error(`Xbox API returned ${response.status}`)
+  if (!response.ok) throw new Error(`Xbox API ${path.split('.')[0]} returned ${response.status}`)
   return await response.json() as T
 }
 
@@ -46,7 +47,7 @@ export async function fetchXboxSnapshot(): Promise<XboxSnapshot> {
     if (!profile) throw new Error('Xbox profile not found')
     const [presence, titleHistory] = await Promise.all([
       xboxFetch<PresenceResponse>('userpresence.xboxlive.com/users/me?level=all', token).catch(() => ({ state: undefined, devices: [] } as PresenceResponse)),
-      xboxFetch<TitleHistoryResponse>(`titlehub.xboxlive.com/users/xuid(${profile.id})/titles/titlehistory/decoration/achievement,image,scid`, token),
+      xboxFetch<TitleHistoryResponse>(`titlehub.xboxlive.com/users/xuid(${profile.id})/titles/titlehistory/decoration/achievement,image,scid`, token, 2),
     ])
     const games: XboxGame[] = (titleHistory.titles || []).slice(0, 5).map((title) => ({
       titleId: title.titleId || title.name || crypto.randomUUID(),
