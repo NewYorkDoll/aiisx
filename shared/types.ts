@@ -89,4 +89,6 @@ export type FitnessSetSummary = {
   name: string
   date: string
   sets: number
+  actionCount: number
+  actionNames: string[]
 }

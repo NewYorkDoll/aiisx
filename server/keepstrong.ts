@@ -3,7 +3,7 @@ import type { FitnessSetSummary, FitnessSnapshot } from '../shared/types'
 const baseUrl = process.env.KEEPSTRONG_BASE_URL || 'https://lianlian.gzyunke.cn'
 const skillVersion = '1.24.0'
 
-type RecordItem = { id?: string; status?: string; durationSeconds?: number; name?: string; dayStr?: string; createdAt?: string; actions?: Array<{ groups?: unknown[] }> }
+type RecordItem = { id?: string; status?: string; durationSeconds?: number; name?: string; dayStr?: string; createdAt?: string; actions?: Array<{ name?: string; groups?: unknown[] }> }
 type Plan = { name?: string; today?: { schedule?: { name?: string } } }
 
 async function getJson<T>(path: string, params?: Record<string, string | number>) {
@@ -28,6 +28,6 @@ export async function fetchFitnessSnapshot(): Promise<FitnessSnapshot> {
   ])
   const records = recordsResponse?.list || []
   const completed = records.filter((record) => record.status === 'completed')
-  const recentSets: FitnessSetSummary[] = completed.slice().sort((a, b) => (b.dayStr || b.createdAt || '').localeCompare(a.dayStr || a.createdAt || '')).slice(0, 10).map((record, index) => ({ id: record.id || `${record.dayStr || record.createdAt || 'session'}-${index}`, name: record.name || 'workout', date: record.dayStr || record.createdAt || '', sets: (record.actions || []).reduce((sum, action) => sum + (action.groups?.length || 0), 0) }))
+  const recentSets: FitnessSetSummary[] = completed.slice().sort((a, b) => (b.dayStr || b.createdAt || '').localeCompare(a.dayStr || a.createdAt || '')).slice(0, 10).map((record, index) => ({ id: record.id || `${record.dayStr || record.createdAt || 'session'}-${index}`, name: record.name || 'workout', date: record.dayStr || record.createdAt || '', sets: (record.actions || []).reduce((sum, action) => sum + (action.groups?.length || 0), 0), actionCount: record.actions?.length || 0, actionNames: (record.actions || []).map((action) => action.name || '').filter(Boolean) }))
   return { weight: null, weightUnit: 'kg', sessions: completed.length, minutes: Math.round(completed.reduce((sum, record) => sum + (record.durationSeconds || 0), 0) / 60), planName: plansResponse?.list?.[0]?.name || null, todayName: plansResponse?.list?.[0]?.today?.schedule?.name || null, fetchedAt: new Date().toISOString(), recentSets }
 }
