@@ -25,7 +25,7 @@ export default function Games() {
         <div className="steam-card-head"><div><p className="kicker">XBOX / ACTIVITY</p><h2>{xbox.profile?.gamertag || 'xbox account'}</h2></div>{xbox.profile?.avatar && <img className="steam-avatar" src={xbox.profile.avatar} alt="" />}</div>
         {xbox.message ? <p className="dim steam-message">{xbox.message}</p> : <>
           <div className="steam-readout"><span><small>STATUS</small><strong className={xbox.state === 'Online' ? 'is-online' : ''}>{xbox.state.toLowerCase()}</strong></span><span><small>GAMERSCORE</small><strong>{xbox.profile?.gamerscore.toLocaleString() || '0'}</strong></span>{xbox.currentGame && <span><small>PLAYING</small><strong>{xbox.currentGame}</strong></span>}</div>
-          <div className="steam-games">{xbox.games.length ? xbox.games.map((game) => <article className="steam-game" key={game.titleId}>{game.cover ? <img src={game.cover} alt="" /> : <div className="game-thumb" /> }<div><h3>{game.name}</h3><p>{game.achievements} achievements / {game.gamerscore}G</p></div></article>) : <p className="dim">no Xbox title history</p>}</div>
+          <div className="steam-games">{xbox.games.length ? xbox.games.map((game) => <article className="steam-game" key={game.titleId}>{game.cover ? <img src={game.cover} alt="" /> : <div className="game-thumb" /> }<div><h3>{game.name}</h3><p>{game.minutes === null ? 'duration unavailable' : `${(game.minutes / 60).toFixed(1)} hours`} / {game.achievements} achievements / {game.gamerscore}G</p></div></article>) : <p className="dim">no Xbox title history</p>}</div>
         </>}
       </section>}
       <div className="switch-heading"><p className="kicker">SWITCH / ARCHIVE</p></div>

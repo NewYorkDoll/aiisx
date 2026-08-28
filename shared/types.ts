@@ -54,6 +54,7 @@ export type XboxGame = {
   cover: string | null
   gamerscore: number
   achievements: number
+  minutes: number | null
 }
 
 export type XboxSnapshot = {
