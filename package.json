@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite",
     "api": "tsx server/index.ts",
+    "auth:switch": "tsx server/auth-switch.ts",
     "sync:games": "tsx server/sync-games.ts",
     "dev:all": "concurrently \"npm run api\" \"npm run dev\"",
     "typecheck:server": "tsc --noEmit -p tsconfig.server.json",
