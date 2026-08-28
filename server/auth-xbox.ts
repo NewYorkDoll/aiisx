@@ -8,9 +8,14 @@ async function authenticate() {
   store.load(tokenFile, true)
   const msal = new Msal(store)
 
-  if (store.hasValidAuthTokens()) {
-    console.log(`Xbox token already available: ${tokenFile}`)
-    return
+  if (store.getUserToken()) {
+    try {
+      await msal.getWebToken()
+      console.log(`Xbox token already available: ${tokenFile}`)
+      return
+    } catch {
+      console.log('Existing Xbox token could not be refreshed; starting a new login.')
+    }
   }
 
   const device = await msal.doDeviceCodeAuth()

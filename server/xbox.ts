@@ -31,7 +31,7 @@ export async function fetchXboxSnapshot(): Promise<XboxSnapshot> {
   const tokenFile = process.env.XBOX_TOKEN_FILE || '.xbox.tokens.json'
   const fetchedAt = new Date().toISOString()
   const store = new TokenStore()
-  if (!store.load(tokenFile, true) || !store.hasValidAuthTokens()) {
+  if (!store.load(tokenFile, true) || !store.getUserToken()) {
     return { configured: false, profile: null, state: 'Unknown', currentGame: null, games: [], fetchedAt, message: 'run npm run auth:xbox to connect Xbox' }
   }
 
