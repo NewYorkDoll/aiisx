@@ -1,7 +1,10 @@
 import dotenv from 'dotenv'
 import mysql from 'mysql2/promise'
 import * as cheerio from 'cheerio'
+import { ProxyAgent, setGlobalDispatcher } from 'undici'
 dotenv.config()
+
+if (process.env.HTTPS_PROXY) setGlobalDispatcher(new ProxyAgent(process.env.HTTPS_PROXY))
 
 type AccessToken = { token_type: string; access_token: string }
 type PlayHistory = { titleId: string; titleName: string; imageUrl?: string; lastPlayedAt: string; totalPlayedMinutes: number }
@@ -11,22 +14,32 @@ const sessionToken = process.env.SWITCH_SESSION_TOKEN
 const databaseUrl = process.env.DATABASE_URL
 const userAgent = 'com.nintendo.znej/1.13.0 (Android/7.1.2)'
 
+async function request(url: string, init?: RequestInit) {
+  let lastError: unknown
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    try { return await fetch(url, { ...init, signal: AbortSignal.timeout(20_000) }) }
+    catch (error) { lastError = error; if (attempt < 2) await new Promise((resolve) => setTimeout(resolve, 800 * (attempt + 1))) }
+  }
+  const reason = lastError instanceof Error ? lastError.message : String(lastError)
+  throw new Error(`Nintendo 请求失败：${url} (${reason})。请检查 HTTPS_PROXY 或更换网络后重试。`, { cause: lastError })
+}
+
 async function getAccessToken() {
   if (!clientId || !sessionToken) throw new Error('SWITCH_CLIENT_ID and SWITCH_SESSION_TOKEN are required')
-  const response = await fetch('https://accounts.nintendo.com/connect/1.0.0/api/token', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ client_id: clientId, session_token: sessionToken, grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer-session-token' }) })
+  const response = await request('https://accounts.nintendo.com/connect/1.0.0/api/token', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ client_id: clientId, session_token: sessionToken, grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer-session-token' }) })
   if (!response.ok) throw new Error(`Nintendo token request failed: ${response.status}`)
   return await response.json() as AccessToken
 }
 
 async function getHistory(token: AccessToken) {
-  const response = await fetch('https://mypage-api.entry.nintendo.co.jp/api/v1/users/me/play_histories', { headers: { Authorization: `${token.token_type} ${token.access_token}`, 'User-Agent': userAgent } })
+  const response = await request('https://mypage-api.entry.nintendo.co.jp/api/v1/users/me/play_histories', { headers: { Authorization: `${token.token_type} ${token.access_token}`, 'User-Agent': userAgent } })
   if (!response.ok) throw new Error(`Nintendo history request failed: ${response.status}`)
   return (await response.json() as { playHistories?: PlayHistory[] }).playHistories || []
 }
 
 async function getChineseInfo(titleId: string, fallbackName: string, fallbackCover: string | undefined) {
   try {
-    const response = await fetch(`https://ec.nintendo.com/apps/${titleId}/HK`, { headers: { 'User-Agent': userAgent } })
+    const response = await request(`https://ec.nintendo.com/apps/${titleId}/HK`, { headers: { 'User-Agent': userAgent } })
     if (!response.ok) return { name: fallbackName, cover: fallbackCover || null }
     const $ = cheerio.load(await response.text())
     return { name: $('.o_c-page-title h1').first().text().trim() || fallbackName, cover: $('.o_c-hero-bg__image-inner img').first().attr('src') || fallbackCover || null }
