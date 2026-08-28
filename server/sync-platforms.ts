@@ -15,13 +15,11 @@ async function syncPlatforms() {
     }).catch((error) => console.error('Steam sync failed:', error instanceof Error ? error.message : error)))
   } else console.log('Steam sync skipped: missing STEAM_API_KEY or STEAM_ID')
 
-  {
-    tasks.push(fetchXboxSnapshot().then(async (snapshot) => {
-      if (snapshot.message) throw new Error(snapshot.message)
-      await saveXboxSnapshot(snapshot)
-      console.log(`Xbox synced: ${snapshot.games.length} games`)
-    }).catch((error) => console.error('Xbox sync failed:', error instanceof Error ? error.message : error)))
-  } else console.log('Xbox sync skipped: missing XBOX_TOKEN_FILE')
+  tasks.push(fetchXboxSnapshot().then(async (snapshot) => {
+    if (snapshot.message) throw new Error(snapshot.message)
+    await saveXboxSnapshot(snapshot)
+    console.log(`Xbox synced: ${snapshot.games.length} games`)
+  }).catch((error) => console.error('Xbox sync failed:', error instanceof Error ? error.message : error)))
 
   if (process.env.KEEPSTRONG_API_KEY) {
     tasks.push(fetchFitnessSnapshot().then(async (snapshot) => {
