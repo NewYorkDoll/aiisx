@@ -86,9 +86,10 @@ export type FitnessSnapshot = {
 
 export type FitnessSetSummary = {
   id: string
-  name: string
+  planName: string
+  actionName: string
   date: string
-  sets: number
-  actionCount: number
-  actionNames: string[]
+  reps: string
+  setNumber: number
+  sequence: number
 }

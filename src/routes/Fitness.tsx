@@ -9,11 +9,7 @@ export default function Fitness() {
   const [data, setData] = useState<FitnessSnapshot>(empty)
   const [ready, setReady] = useState(false)
   useEffect(() => { getFitness().then((snapshot) => { setData(snapshot); setReady(true) }).catch(() => undefined) }, [])
-  const recentSets = (data.recentSets || []).map((session) => ({
-    ...session,
-    actionCount: session.actionCount || 0,
-    actionNames: Array.isArray(session.actionNames) ? session.actionNames : [],
-  }))
+  const recentSets = (data.recentSets || []).filter((set) => set.actionName).slice(0, 10)
   return (
     <div className="route-stack">
       <Prompt command="training --status">
@@ -25,7 +21,7 @@ export default function Fitness() {
         <div className="fitness-readout">
           <div className="fitness-big"><span className="readout-label">sessions / 30d</span><strong>{data.sessions.toString().padStart(2, '0')}</strong></div>
           <div><span className="readout-label">time under tension</span><strong>{data.minutes}<small> min</small></strong></div>
-          <div><span className="readout-label">recent sets</span><strong>{recentSets.reduce((total, session) => total + session.sets, 0)}</strong></div>
+          <div><span className="readout-label">recent sets</span><strong>{recentSets.length}</strong></div>
         </div>
         <div className="training-plan">
           <span className="readout-label">active plan</span>
@@ -33,21 +29,18 @@ export default function Fitness() {
           <span className="plan-today">today / {data.todayName || '—'}</span>
         </div>
       </Prompt>
-      <Prompt command="training --history">
+      <Prompt command="training --recent --limit=10">
         <div className="recent-sessions">
-          <span className="readout-label">last 10 workouts / actions</span>
-          {recentSets.length ? recentSets.map((session) => (
-            <article className="recent-session" key={session.id}>
-              <div className="recent-session-head">
-                <span>{session.date}</span>
-                <em>{session.name}</em>
-                <strong>{session.actionCount} actions / {session.sets} sets</strong>
+          <span className="readout-label">last 10 completed sets</span>
+          {recentSets.length ? recentSets.map((set, index) => (
+            <article className="recent-set" key={set.id}>
+              <span className="recent-set-index">#{String(index + 1).padStart(2, '0')}</span>
+              <div className="recent-set-name">
+                <strong>{set.actionName}</strong>
+                <span>{set.planName} / 第 {set.setNumber} 组</span>
               </div>
-              {session.actionNames.length ? (
-                <ol className="recent-actions">
-                  {session.actionNames.map((action, index) => <li key={`${session.id}-${index}`}>{action}</li>)}
-                </ol>
-              ) : <p className="recent-actions-empty">暂无动作明细</p>}
+              <b>{set.reps || '—'}<small> 次</small></b>
+              <time>{set.date}</time>
             </article>
           )) : <p className="dim">no workout history</p>}
         </div>
