@@ -26,6 +26,27 @@ export type GameRecord = {
   minutes: number
 }
 
+export type SteamGame = {
+  appId: number
+  name: string
+  minutes: number
+  cover: string
+}
+
+export type SteamSnapshot = {
+  configured: boolean
+  profile: {
+    name: string
+    avatar: string
+    state: number
+    profileUrl: string
+  } | null
+  playTimeMinutes: number
+  games: SteamGame[]
+  fetchedAt: string
+  message?: string
+}
+
 export type FitnessSnapshot = {
   weight: number | null
   weightUnit: string
