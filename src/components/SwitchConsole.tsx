@@ -94,6 +94,5 @@ export function SwitchConsole({ games, loading }: SwitchConsoleProps) {
       </div>
     </div>
 
-    <p className={styles.hint}><span>← →</span> Joy-Con browse <span>scroll / drag inside the screen</span></p>
   </section>
 }

@@ -23,7 +23,7 @@
 }
 
 .consoleStage {
-  height: 330px;
+  height: 350px;
   margin-top: 31px;
   position: relative;
   width: 100%;
@@ -39,6 +39,7 @@
 }
 
 .body {
+  align-items: center;
   background-image: linear-gradient(to bottom, rgba(56,58,61,0) 50%, #383a3d 50%), radial-gradient(circle at 0 0, rgba(56,58,61,0) .5em, #383a3d .515625em), radial-gradient(circle at 100% 0, rgba(56,58,61,0) .5em, #383a3d .515625em);
   background-position: 0 0, 0 0, 100% 0;
   background-repeat: no-repeat;
@@ -46,7 +47,9 @@
   border-radius: .125em;
   box-shadow: inset 0 -1.25em .5em -1em rgba(0,0,0,.5);
   box-sizing: content-box;
+  display: flex;
   height: 11.75em;
+  justify-content: center;
   padding: .375em .5625em;
   position: relative;
   width: 20.125em;
@@ -206,10 +209,13 @@
 }
 
 .gameRail {
+  align-items: stretch;
+  background: #101115;
   display: flex;
+  gap: .15em;
   height: 100%;
   overflow: hidden;
-  padding: .3em;
+  padding: .285em;
   scroll-behavior: smooth;
   scroll-snap-type: x mandatory;
   touch-action: pan-x;
@@ -218,11 +224,12 @@
 }
 
 .gameCard {
-  background: #1b1d22;
-  box-shadow: 0 .2em .45em rgba(0,0,0,.28);
-  flex: 0 0 7.2em;
-  height: calc(100% - .25em);
-  margin-right: .35em;
+  background: linear-gradient(155deg, #202228, #181a1f);
+  border: 1px solid rgba(255,255,255,.055);
+  border-radius: .25em;
+  box-shadow: 0 .22em .5em rgba(0,0,0,.38), inset 0 1px rgba(255,255,255,.035);
+  flex: 0 0 7.285em;
+  height: 8.42em;
   overflow: hidden;
   scroll-snap-align: start;
 }
@@ -230,8 +237,9 @@
 .gameCard img,
 .gameFallback {
   background: #15161a;
+  border-radius: .22em .22em .12em .12em;
   display: block;
-  height: 4.05em;
+  height: 4.57em;
   object-fit: cover;
   width: 100%;
 }
@@ -245,14 +253,16 @@
 }
 
 .cardBody {
-  padding: .4em .55em;
+  border-top: 1px solid rgba(255,255,255,.045);
+  padding: .48em .68em .52em;
 }
 
 .cardBody h3 {
   color: #f4f3ee;
   font-size: clamp(.52rem, .45em, .8rem);
   font-weight: 600;
-  margin: 0 0 .5em;
+  letter-spacing: 0;
+  margin: 0 0 .62em;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -261,12 +271,13 @@
 .cardBody p {
   color: #777b86;
   font-size: clamp(.4rem, .3em, .6rem);
-  margin: .45em 0 .1em;
+  letter-spacing: .03em;
+  margin: .52em 0 .12em;
 }
 
 .cardBody time,
 .cardBody strong {
-  color: #6eacd1;
+  color: #77bde7;
   display: block;
   font-size: clamp(.42rem, .32em, .62rem);
   font-weight: 400;
@@ -275,7 +286,7 @@
   white-space: nowrap;
 }
 
-.cardBody strong { color: #82c7dc; }
+.cardBody strong { color: #8ed5ea; }
 
 .screenMessage {
   color: #8f929c;
@@ -297,8 +308,9 @@
 }
 
 .joyCon.left {
+  background-color: #00c3e3;
   border-radius: 2.5em .25em .125em 2.5em;
-  box-shadow: inset .125em -.125em .375em rgba(0,0,0,.5), inset -.3125em 0 .0625em -.25em rgba(0,0,0,.25), inset .375em .5625em .5em -.25em #83868d, .40625em .25em 0 -.375em #222;
+  box-shadow: inset .125em -.125em .375em rgba(0,0,0,.5), inset -.3125em 0 .0625em -.25em rgba(0,0,0,.25), inset .375em .5625em .5em -.25em #42d4eb, .40625em .25em 0 -.375em #222;
   right: calc(100% + .03125em);
 }
 
@@ -316,8 +328,9 @@
 }
 
 .joyCon.right {
+  background-color: #ff4554;
   border-radius: .25em 2.5em 2.5em .125em;
-  box-shadow: inset -.125em -.125em .375em rgba(0,0,0,.5), inset .3125em 0 .0625em -.25em rgba(0,0,0,.25), inset -.375em .5625em .5em -.25em #83868d, -.40625em .25em 0 -.375em #222;
+  box-shadow: inset -.125em -.125em .375em rgba(0,0,0,.5), inset .3125em 0 .0625em -.25em rgba(0,0,0,.25), inset -.375em .5625em .5em -.25em #ff7580, -.40625em .25em 0 -.375em #222;
   left: calc(100% + .03125em);
 }
 
@@ -351,6 +364,7 @@
   border-radius: 100%;
   box-shadow: inset 0 -.0625em .125em rgba(0,0,0,.75), inset 0 .125em .125em -.0625em rgba(255,255,255,.4), 0 0 .03125em .0625em rgba(0,0,0,.6), 0 .0625em .25em .03125em rgba(0,0,0,.5);
   color: rgba(255,255,255,.6);
+  font: inherit;
   height: .75em;
   margin: -.375em;
   padding: 0;
@@ -521,7 +535,7 @@ button.button { cursor: pointer; }
   background: #444;
   border-radius: 50%;
   bottom: 2.8125em;
-  box-shadow: inset 0 0 0 .09375em #83868d, inset 0 .25em .5em -.0625em rgba(255,255,255,.1), inset 0 .015625em .03125em -.015625em rgba(255,255,255,.5), inset 0 0 .03125em #000, 0 .015625em .03125em .0625em rgba(0,0,0,.65);
+  box-shadow: inset 0 0 0 .09375em #ff4554, inset 0 .25em .5em -.0625em rgba(255,255,255,.1), inset 0 .015625em .03125em -.015625em rgba(255,255,255,.5), inset 0 0 .03125em #000, 0 .015625em .03125em .0625em rgba(0,0,0,.65);
   cursor: pointer;
   height: .875em;
   left: .75em;
@@ -578,35 +592,23 @@ button.button { cursor: pointer; }
   right: -.125em;
 }
 
-.hint {
-  color: #666a73;
-  display: flex;
-  font: .59rem var(--mono);
-  gap: 9px;
-  margin: 13px 0 0;
-}
-
-.hint span:first-child { color: var(--coral); }
-.hint span:last-child { margin-left: auto; }
-
 @media (max-width: 980px) {
-  .consoleStage { height: 271px; }
+  .consoleStage { height: 288px; }
   .switch { font-size: 23px; }
 }
 
 @media (max-width: 700px) {
-  .consoleStage { height: 212px; }
+  .consoleStage { height: 225px; }
   .switch { font-size: 18px; }
 }
 
 @media (max-width: 480px) {
   .archive { margin-left: -7px; margin-right: -7px; }
-  .consoleStage { height: 130px; margin-top: 24px; }
+  .consoleStage { height: 138px; margin-top: 24px; }
   .switch { font-size: 11px; }
   .gameCard { flex-basis: 7.6em; }
   .cardBody { padding: .25em .4em; }
   .cardBody p { display: none; }
   .cardBody h3 { margin-bottom: .3em; }
   .cardBody time, .cardBody strong { margin-top: .25em; }
-  .hint span:last-child { display: none; }
 }
