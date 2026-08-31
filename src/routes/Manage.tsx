@@ -1,12 +1,13 @@
 import { useEffect, useState } from 'react'
-import { Eye, EyeOff, FilePenLine, LogOut, Trash2 } from 'lucide-react'
+import { Eye, EyeOff, FilePenLine, LogOut, RefreshCw, Trash2 } from 'lucide-react'
 import { Link, useNavigate } from '@tanstack/react-router'
 import { Prompt, PromptInput } from '../components/Prompt'
-import { deletePost, getAuthStatus, getPosts, logout, updatePost } from '../lib/api'
-import type { BlogPost } from '../../shared/types'
+import { deletePost, getAuthStatus, getPosts, getSyncRuns, logout, updatePost } from '../lib/api'
+import type { BlogPost, SyncRun } from '../../shared/types'
 
 export default function Manage() {
   const [posts, setPosts] = useState<BlogPost[]>([])
+  const [syncRuns, setSyncRuns] = useState<SyncRun[]>([])
   const [message, setMessage] = useState('')
   const [messageKind, setMessageKind] = useState<'error' | 'success'>('error')
   const [loading, setLoading] = useState(true)
@@ -17,14 +18,20 @@ export default function Manage() {
   useEffect(() => {
     let active = true
     getAuthStatus()
-      .then(async (auth) => { if (!auth.authenticated) { await navigate({ to: '/login' }); return }; return getPosts('all') })
-      .then((items) => { if (active && items) setPosts(items) })
+      .then(async (auth) => { if (!auth.authenticated) { await navigate({ to: '/login' }); return }; return Promise.all([getPosts('all'), getSyncRuns()]) })
+      .then((result) => { if (active && result) { setPosts(result[0]); setSyncRuns(result[1]) } })
       .catch(() => { if (active) { setMessageKind('error'); setMessage('无法读取文章，请检查管理员令牌或 API 服务') } })
       .finally(() => { if (active) setLoading(false) })
     return () => { active = false }
   }, [navigate])
 
   async function signOut() { await logout(); await navigate({ to: '/login' }) }
+
+  async function refreshSyncRuns() {
+    setMessage('')
+    try { setSyncRuns(await getSyncRuns()) }
+    catch { setMessageKind('error'); setMessage('同步记录读取失败，请稍后重试') }
+  }
 
   async function toggleStatus(post: BlogPost) {
     setBusySlug(post.slug)
@@ -72,6 +79,30 @@ export default function Manage() {
           </div>
         </div>
         <div className="admin-session"><span>authenticated session / 7 days</span><button type="button" onClick={() => void signOut()} title="退出登录"><LogOut size={14} /><span>sign out</span></button></div>
+      </Prompt>
+      <Prompt command="systemctl status aiisx-sync --history">
+        <div className="sync-heading">
+          <div><span className="readout-label">platform scheduler</span><strong>sync history</strong></div>
+          <button type="button" onClick={() => void refreshSyncRuns()} title="刷新同步记录" aria-label="刷新同步记录"><RefreshCw size={15} /></button>
+        </div>
+        <div className="sync-history">
+          {syncRuns.map((run) => (
+            <article className="sync-run" key={run.id}>
+              <div className="sync-run-meta">
+                <time>{new Intl.DateTimeFormat('zh-CN', { dateStyle: 'short', timeStyle: 'medium' }).format(new Date(run.startedAt))}</time>
+                <span>{run.trigger}{run.slot ? ` / ${run.slot}` : ''}</span>
+              </div>
+              <div className="sync-run-state">
+                <strong data-status={run.status}>{run.status}</strong>
+                <span>{run.succeeded} ok / {run.failed} failed / {run.durationMs === null ? 'running' : `${(run.durationMs / 1000).toFixed(1)}s`}</span>
+              </div>
+              <div className="sync-platforms">
+                {run.items.map((item) => <span key={item.id} data-status={item.status} title={item.message || item.status}>{item.platform}</span>)}
+              </div>
+            </article>
+          ))}
+          {!loading && !syncRuns.length && <p className="dim">no sync history yet / next cron run will appear here</p>}
+        </div>
       </Prompt>
       <Prompt command="ls journal/* --all">
         <div className="manage-list">

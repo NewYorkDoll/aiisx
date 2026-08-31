@@ -1,4 +1,4 @@
-import type { BlogPost, FitnessSnapshot, GameRecord, PostInput, SteamSnapshot, XboxSnapshot } from '../../shared/types'
+import type { BlogPost, FitnessSnapshot, GameRecord, PostInput, SteamSnapshot, SyncRun, XboxSnapshot } from '../../shared/types'
 
 const API_URL = import.meta.env.VITE_API_URL || ''
 
@@ -23,6 +23,12 @@ export async function getPosts(status: 'published' | 'draft' | 'all' = 'publishe
   const response = await fetch(`${API_URL}/api/posts?status=${status}`, { headers: adminHeaders(), credentials: 'include' })
   if (!response.ok) throw new Error('Unable to load journal')
   return (await response.json() as { items: BlogPost[] }).items
+}
+
+export async function getSyncRuns(limit = 12) {
+  const response = await fetch(`${API_URL}/api/admin/sync-runs?limit=${limit}`, { credentials: 'include' })
+  if (!response.ok) throw new Error('Unable to load sync history')
+  return (await response.json() as { items: SyncRun[] }).items
 }
 
 export async function getPost(slug: string) {
