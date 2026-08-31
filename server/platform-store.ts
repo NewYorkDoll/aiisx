@@ -1,5 +1,5 @@
-import type { FitnessSnapshot, SteamSnapshot, XboxSnapshot } from '../shared/types'
-import { closeDatabase, database, ensureDatabaseSchema } from './database'
+import type { FitnessSnapshot, SteamSnapshot, XboxSnapshot } from '../shared/types.js'
+import { closeDatabase, database, ensureDatabaseSchema } from './database.js'
 
 export async function closePlatformStore() {
   await closeDatabase()

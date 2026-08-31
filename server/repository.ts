@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import type { Row } from '@libsql/client'
-import type { BlogPost, PostInput } from '../shared/types'
-import { database, ensureDatabaseSchema } from './database'
+import type { BlogPost, PostInput } from '../shared/types.js'
+import { database, ensureDatabaseSchema } from './database.js'
 
 function mapPost(post: Row): BlogPost {
   return {

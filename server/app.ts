@@ -3,10 +3,10 @@ import { createHmac, timingSafeEqual } from 'node:crypto'
 import { Hono, type Context } from 'hono'
 import { cors } from 'hono/cors'
 import { deleteCookie, getCookie, setCookie } from 'hono/cookie'
-import { postInputSchema } from '../shared/types'
-import { listGames } from './db'
-import { getStoredFitnessSnapshot, getStoredSteamSnapshot, getStoredXboxSnapshot } from './platform-store'
-import { repository } from './repository'
+import { postInputSchema } from '../shared/types.js'
+import { listGames } from './db.js'
+import { getStoredFitnessSnapshot, getStoredSteamSnapshot, getStoredXboxSnapshot } from './platform-store.js'
+import { repository } from './repository.js'
 
 const app = new Hono()
 app.use('/api/*', cors())
@@ -66,7 +66,7 @@ app.get('/api/cron/:slot', async (c) => {
   if (!isCronAuthorized(c)) return c.json({ message: 'Unauthorized' }, 401)
   const slot = c.req.param('slot')
   if (slot !== 'noon' && slot !== 'evening') return c.json({ message: 'Cron slot not found' }, 404)
-  const { syncPlatforms } = await import('./sync-platforms')
+    const { syncPlatforms } = await import('./sync-platforms.js')
   const result = await syncPlatforms()
   const body = { slot, completedAt: new Date().toISOString(), ...result }
   return result.failed ? c.json(body, 502) : c.json(body)

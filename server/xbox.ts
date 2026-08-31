@@ -1,6 +1,6 @@
 import { Msal } from 'xal-node'
-import type { XboxGame, XboxSnapshot } from '../shared/types'
-import { loadXboxTokenStore, saveXboxTokenStore } from './xbox-token-store'
+import type { XboxGame, XboxSnapshot } from '../shared/types.js'
+import { loadXboxTokenStore, saveXboxTokenStore } from './xbox-token-store.js'
 
 type WebToken = { data: { Token: string; DisplayClaims: { xui: Array<{ uhs: string }> } } }
 type Profile = { id: string; settings?: Array<{ id: string; value: string }> }

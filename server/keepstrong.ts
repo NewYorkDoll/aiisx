@@ -1,4 +1,4 @@
-import type { FitnessActionSummary, FitnessSnapshot } from '../shared/types'
+import type { FitnessActionSummary, FitnessSnapshot } from '../shared/types.js'
 
 const baseUrl = process.env.KEEPSTRONG_BASE_URL || 'https://lianlian.gzyunke.cn'
 const skillVersion = '1.24.0'

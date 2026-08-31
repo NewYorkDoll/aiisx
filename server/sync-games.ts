@@ -3,8 +3,8 @@ import * as cheerio from 'cheerio'
 import { ProxyAgent, setGlobalDispatcher } from 'undici'
 import { pathToFileURL } from 'node:url'
 import { resolve } from 'node:path'
-import { ensureSwitchSchema } from './db'
-import { database } from './database'
+import { ensureSwitchSchema } from './db.js'
+import { database } from './database.js'
 
 if (process.env.HTTPS_PROXY) setGlobalDispatcher(new ProxyAgent(process.env.HTTPS_PROXY))
 

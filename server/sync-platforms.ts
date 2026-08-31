@@ -1,12 +1,12 @@
 import 'dotenv/config'
 import { resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
-import { fetchFitnessSnapshot } from './keepstrong'
-import { fetchSteamSnapshot } from './steam'
-import { fetchXboxSnapshot } from './xbox'
-import { closePlatformStore, saveFitnessSnapshot, saveSteamSnapshot, saveXboxSnapshot } from './platform-store'
-import { syncGames } from './sync-games'
-import { databaseLocation } from './database'
+import { fetchFitnessSnapshot } from './keepstrong.js'
+import { fetchSteamSnapshot } from './steam.js'
+import { fetchXboxSnapshot } from './xbox.js'
+import { closePlatformStore, saveFitnessSnapshot, saveSteamSnapshot, saveXboxSnapshot } from './platform-store.js'
+import { syncGames } from './sync-games.js'
+import { databaseLocation } from './database.js'
 
 export type SyncResult = { platform: string; ok: boolean; message?: string }
 

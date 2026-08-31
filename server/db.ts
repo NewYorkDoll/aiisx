@@ -1,5 +1,5 @@
-import type { GameRecord } from '../shared/types'
-import { database, ensureDatabaseSchema } from './database'
+import type { GameRecord } from '../shared/types.js'
+import { database, ensureDatabaseSchema } from './database.js'
 
 export async function ensureSwitchSchema() {
   await ensureDatabaseSchema()

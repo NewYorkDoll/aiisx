@@ -1,4 +1,4 @@
-import type { SteamGame, SteamSnapshot } from '../shared/types'
+import type { SteamGame, SteamSnapshot } from '../shared/types.js'
 
 type SteamPlayer = { steamid: string; personaname: string; personastate: number; avatarfull: string }
 type SteamRawGame = { appid: number; name: string; playtime_2weeks?: number }

@@ -1,7 +1,7 @@
 import 'dotenv/config'
 import { createCipheriv, createDecipheriv, createHash, randomBytes } from 'node:crypto'
 import { TokenStore } from 'xal-node'
-import { database, ensureDatabaseSchema } from './database'
+import { database, ensureDatabaseSchema } from './database.js'
 
 const legacyTokenFile = process.env.XBOX_TOKEN_FILE || '.xbox.tokens.json'
 
