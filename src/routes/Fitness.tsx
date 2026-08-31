@@ -1,10 +1,10 @@
-import { useEffect, useState } from 'react'
-import { MuscleFigure } from '../components/MuscleFigure'
+import { lazy, Suspense, useEffect, useState } from 'react'
 import { Prompt, PromptInput } from '../components/Prompt'
 import { getFitness } from '../lib/api'
 import type { FitnessSnapshot } from '../../shared/types'
 
 const empty: FitnessSnapshot = { weight: null, weightUnit: 'kg', sessions: 0, minutes: 0, planName: null, todayName: null, fetchedAt: '', recentActions: [] }
+const MuscleFigure = lazy(() => import('../components/MuscleFigure').then((module) => ({ default: module.MuscleFigure })))
 
 export default function Fitness() {
   const [data, setData] = useState<FitnessSnapshot>(empty)
@@ -32,7 +32,9 @@ export default function Fitness() {
               <span className="plan-today">today / {data.todayName || '—'}</span>
             </div>
           </div>
-          <MuscleFigure actions={data.recentActions || []} />
+          <Suspense fallback={<div className="muscle-loading" aria-hidden="true"><span /></div>}>
+            <MuscleFigure actions={data.recentActions || []} />
+          </Suspense>
         </div>
       </Prompt>
       <Prompt command="training --recent --limit=10">
