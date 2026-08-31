@@ -2,32 +2,104 @@ import 'dotenv/config'
 import { fetchFitnessSnapshot } from './keepstrong'
 import { fetchSteamSnapshot } from './steam'
 import { fetchXboxSnapshot } from './xbox'
-import { saveFitnessSnapshot, saveSteamSnapshot, saveXboxSnapshot } from './platform-store'
+import { closePlatformStore, saveFitnessSnapshot, saveSteamSnapshot, saveXboxSnapshot } from './platform-store'
+import { syncGames } from './sync-games'
+
+type SyncResult = { platform: string; ok: boolean }
+
+function timestamp() {
+  return new Intl.DateTimeFormat('zh-CN', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }).format(new Date())
+}
+
+function elapsed(startedAt: number) {
+  const milliseconds = Math.round(performance.now() - startedAt)
+  return milliseconds < 1_000 ? `${milliseconds}ms` : `${(milliseconds / 1_000).toFixed(1)}s`
+}
+
+function log(scope: string, message: string) {
+  console.log(`[${timestamp()}] ${scope.padEnd(8)} ${message}`)
+}
+
+async function syncSteam(): Promise<SyncResult> {
+  const startedAt = performance.now()
+  log('Steam', 'requesting profile and recent games...')
+  try {
+    const snapshot = await fetchSteamSnapshot()
+    if (snapshot.message) throw new Error(snapshot.message)
+    log('Steam', `received ${snapshot.games.length} games; writing database...`)
+    await saveSteamSnapshot(snapshot)
+    log('Steam', `done: ${snapshot.games.length} games (${elapsed(startedAt)})`)
+    return { platform: 'Steam', ok: true }
+  } catch (error) {
+    log('Steam', `failed after ${elapsed(startedAt)}: ${error instanceof Error ? error.message : error}`)
+    return { platform: 'Steam', ok: false }
+  }
+}
+
+async function syncXbox(): Promise<SyncResult> {
+  const startedAt = performance.now()
+  log('Xbox', 'loading token and requesting profile, presence, games...')
+  try {
+    const snapshot = await fetchXboxSnapshot()
+    if (snapshot.message) throw new Error(snapshot.message)
+    log('Xbox', `received ${snapshot.games.length} games; writing database...`)
+    await saveXboxSnapshot(snapshot)
+    log('Xbox', `done: ${snapshot.games.length} games (${elapsed(startedAt)})`)
+    return { platform: 'Xbox', ok: true }
+  } catch (error) {
+    log('Xbox', `failed after ${elapsed(startedAt)}: ${error instanceof Error ? error.message : error}`)
+    return { platform: 'Xbox', ok: false }
+  }
+}
+
+async function syncFitness(): Promise<SyncResult> {
+  const startedAt = performance.now()
+  log('Fitness', 'requesting training records and active plan...')
+  try {
+    const snapshot = await fetchFitnessSnapshot()
+    log('Fitness', `received ${snapshot.sessions} sessions and ${snapshot.recentActions.length} recent actions; writing database...`)
+    await saveFitnessSnapshot(snapshot)
+    log('Fitness', `done: ${snapshot.sessions} sessions (${elapsed(startedAt)})`)
+    return { platform: 'Fitness', ok: true }
+  } catch (error) {
+    log('Fitness', `failed after ${elapsed(startedAt)}: ${error instanceof Error ? error.message : error}`)
+    return { platform: 'Fitness', ok: false }
+  }
+}
+
+async function syncSwitch(): Promise<SyncResult> {
+  const startedAt = performance.now()
+  try {
+    const result = await syncGames((message) => log('Switch', message))
+    log('Switch', `done: ${result.inserted} new records from ${result.histories} games (${elapsed(startedAt)})`)
+    return { platform: 'Switch', ok: true }
+  } catch (error) {
+    log('Switch', `failed after ${elapsed(startedAt)}: ${error instanceof Error ? error.message : error}`)
+    return { platform: 'Switch', ok: false }
+  }
+}
 
 async function syncPlatforms() {
-  if (!process.env.DATABASE_URL) console.warn('DATABASE_URL is missing: sync results will only live in this process')
-  const tasks: Array<Promise<void>> = []
+  const startedAt = performance.now()
+  if (!process.env.DATABASE_URL) log('Database', 'DATABASE_URL is missing; results will only live in this process')
+  const tasks: Array<Promise<SyncResult>> = []
   if (process.env.STEAM_API_KEY && process.env.STEAM_ID) {
-    tasks.push(fetchSteamSnapshot().then(async (snapshot) => {
-      if (snapshot.message) throw new Error(snapshot.message)
-      await saveSteamSnapshot(snapshot)
-      console.log(`Steam synced: ${snapshot.games.length} games`)
-    }).catch((error) => console.error('Steam sync failed:', error instanceof Error ? error.message : error)))
-  } else console.log('Steam sync skipped: missing STEAM_API_KEY or STEAM_ID')
+    tasks.push(syncSteam())
+  } else log('Steam', 'skipped: missing STEAM_API_KEY or STEAM_ID')
 
-  tasks.push(fetchXboxSnapshot().then(async (snapshot) => {
-    if (snapshot.message) throw new Error(snapshot.message)
-    await saveXboxSnapshot(snapshot)
-    console.log(`Xbox synced: ${snapshot.games.length} games`)
-  }).catch((error) => console.error('Xbox sync failed:', error instanceof Error ? error.message : error)))
+  if (process.env.SWITCH_CLIENT_ID && process.env.SWITCH_SESSION_TOKEN) {
+    tasks.push(syncSwitch())
+  } else log('Switch', 'skipped: missing SWITCH_CLIENT_ID or SWITCH_SESSION_TOKEN')
+
+  tasks.push(syncXbox())
 
   if (process.env.KEEPSTRONG_API_KEY) {
-    tasks.push(fetchFitnessSnapshot().then(async (snapshot) => {
-      await saveFitnessSnapshot(snapshot)
-      console.log(`Fitness synced: ${snapshot.sessions} sessions`)
-    }).catch((error) => console.error('Fitness sync failed:', error instanceof Error ? error.message : error)))
-  } else console.log('Fitness sync skipped: missing KEEPSTRONG_API_KEY')
-  await Promise.all(tasks)
+    tasks.push(syncFitness())
+  } else log('Fitness', 'skipped: missing KEEPSTRONG_API_KEY')
+  log('Sync', `started ${tasks.length} platform tasks in parallel`)
+  const results = await Promise.all(tasks)
+  const succeeded = results.filter((result) => result.ok).length
+  return { succeeded, failed: results.length - succeeded, duration: elapsed(startedAt) }
 }
 
 function nextScheduledRun() {
@@ -46,12 +118,21 @@ function nextScheduledRun() {
 
 async function schedule() {
   const next = nextScheduledRun()
-  console.log(`Next platform sync: ${next.toLocaleString()}`)
-  setTimeout(async () => { await syncPlatforms(); await schedule() }, Math.max(1_000, next.getTime() - Date.now()))
+  log('Schedule', `next run: ${next.toLocaleString()}`)
+  setTimeout(async () => { const result = await syncPlatforms(); log('Sync', `scheduled run finished: ${result.succeeded} succeeded, ${result.failed} failed (${result.duration})`); await schedule() }, Math.max(1_000, next.getTime() - Date.now()))
 }
 
 if (process.argv.includes('--schedule')) {
   schedule().catch((error) => { console.error(error); process.exitCode = 1 })
 } else {
-  syncPlatforms().catch((error) => { console.error(error); process.exitCode = 1 })
+  const startedAt = performance.now()
+  syncPlatforms().then(async (result) => {
+    log('Database', 'closing connection pool...')
+    await closePlatformStore()
+    log('Sync', `complete: ${result.succeeded} succeeded, ${result.failed} failed (${elapsed(startedAt)})`)
+  }).catch(async (error) => {
+    console.error(error)
+    await closePlatformStore().catch(() => undefined)
+    process.exitCode = 1
+  })
 }

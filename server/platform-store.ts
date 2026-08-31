@@ -7,6 +7,10 @@ let memorySteam: SteamSnapshot | null = null
 let memoryXbox: XboxSnapshot | null = null
 let memoryFitness: FitnessSnapshot | null = null
 
+export async function closePlatformStore() {
+  if (pool) await pool.end()
+}
+
 async function ensureSchema() {
   if (!pool) return
   if (!schemaReady) {

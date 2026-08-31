@@ -1,8 +1,9 @@
-import dotenv from 'dotenv'
+import 'dotenv/config'
 import mysql from 'mysql2/promise'
 import * as cheerio from 'cheerio'
 import { ProxyAgent, setGlobalDispatcher } from 'undici'
-dotenv.config()
+import { pathToFileURL } from 'node:url'
+import { resolve } from 'node:path'
 
 if (process.env.HTTPS_PROXY) setGlobalDispatcher(new ProxyAgent(process.env.HTTPS_PROXY))
 
@@ -14,25 +15,27 @@ const sessionToken = process.env.SWITCH_SESSION_TOKEN
 const databaseUrl = process.env.DATABASE_URL
 const userAgent = 'com.nintendo.znej/1.13.0 (Android/7.1.2)'
 
-async function request(url: string, init?: RequestInit) {
+type Progress = (message: string) => void
+
+async function request(url: string, init?: RequestInit, onRetry?: (attempt: number) => void) {
   let lastError: unknown
   for (let attempt = 0; attempt < 3; attempt += 1) {
     try { return await fetch(url, { ...init, signal: AbortSignal.timeout(20_000) }) }
-    catch (error) { lastError = error; if (attempt < 2) await new Promise((resolve) => setTimeout(resolve, 800 * (attempt + 1))) }
+    catch (error) { lastError = error; if (attempt < 2) { onRetry?.(attempt + 2); await new Promise((resolve) => setTimeout(resolve, 800 * (attempt + 1))) } }
   }
   const reason = lastError instanceof Error ? lastError.message : String(lastError)
   throw new Error(`Nintendo 请求失败：${url} (${reason})。请检查 HTTPS_PROXY 或更换网络后重试。`, { cause: lastError })
 }
 
-async function getAccessToken() {
+async function getAccessToken(progress: Progress) {
   if (!clientId || !sessionToken) throw new Error('SWITCH_CLIENT_ID and SWITCH_SESSION_TOKEN are required')
-  const response = await request('https://accounts.nintendo.com/connect/1.0.0/api/token', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ client_id: clientId, session_token: sessionToken, grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer-session-token' }) })
+  const response = await request('https://accounts.nintendo.com/connect/1.0.0/api/token', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ client_id: clientId, session_token: sessionToken, grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer-session-token' }) }, (attempt) => progress(`access token request failed; retrying ${attempt}/3...`))
   if (!response.ok) throw new Error(`Nintendo token request failed: ${response.status}`)
   return await response.json() as AccessToken
 }
 
-async function getHistory(token: AccessToken) {
-  const response = await request('https://mypage-api.entry.nintendo.co.jp/api/v1/users/me/play_histories', { headers: { Authorization: `${token.token_type} ${token.access_token}`, 'User-Agent': userAgent } })
+async function getHistory(token: AccessToken, progress: Progress) {
+  const response = await request('https://mypage-api.entry.nintendo.co.jp/api/v1/users/me/play_histories', { headers: { Authorization: `${token.token_type} ${token.access_token}`, 'User-Agent': userAgent } }, (attempt) => progress(`play history request failed; retrying ${attempt}/3...`))
   if (!response.ok) throw new Error(`Nintendo history request failed: ${response.status}`)
   return (await response.json() as { playHistories?: PlayHistory[] }).playHistories || []
 }
@@ -50,29 +53,34 @@ async function getChineseInfo(titleId: string, fallbackName: string, fallbackCov
 
 function parseDate(value: string) { return new Date(value.replace(/([+-]\d\d):?\d\d$/, '$1:00')) }
 
-async function syncGames() {
+export async function syncGames(progress: Progress = () => undefined) {
   if (!databaseUrl) throw new Error('DATABASE_URL is required')
   const pool = mysql.createPool(databaseUrl)
   try {
-    const token = await getAccessToken()
-    const histories = await getHistory(token)
+    progress('requesting Nintendo access token...')
+    const token = await getAccessToken(progress)
+    progress('access token received; requesting play history...')
+    const histories = await getHistory(token, progress)
+    progress(`received ${histories.length} play history records; checking database...`)
     const [rawRows] = await pool.query('SELECT title_id, SUM(play_time) AS total_play_time, MAX(last_played_at) AS last_played_at FROM dwd_switch_game_played_record GROUP BY title_id')
     const rows = rawRows as Array<{ title_id: string; total_play_time: number; last_played_at: Date }>
     const previous = new Map(rows.map((row) => [row.title_id, row]))
     let inserted = 0
-    for (const game of histories) {
+    for (const [index, game] of histories.entries()) {
       const playedAt = parseDate(game.lastPlayedAt)
       const old = previous.get(game.titleId)
       if (old && old.last_played_at.getTime() === playedAt.getTime()) continue
       const delta = Math.max(0, game.totalPlayedMinutes - Number(old?.total_play_time || 0))
+      progress(`processing ${index + 1}/${histories.length}: ${game.titleName}`)
       const info = await getChineseInfo(game.titleId, game.titleName, game.imageUrl)
       await pool.execute('INSERT INTO dwd_switch_game_played_record (title_id, title_name, zh_name, zh_cover, last_played_at, play_time, create_time, update_time) VALUES (?, ?, ?, ?, ?, ?, NOW(), NOW())', [game.titleId, game.titleName, info.name, info.cover, playedAt, delta])
       inserted += 1
     }
-    console.log(`Synced ${inserted} Switch game records.`)
+    return { histories: histories.length, inserted }
   } finally {
     await pool.end()
   }
 }
 
-syncGames().catch((error) => { console.error(error); process.exitCode = 1 })
+const isDirectRun = Boolean(process.argv[1]) && import.meta.url === pathToFileURL(resolve(process.argv[1])).href
+if (isDirectRun) syncGames((message) => console.log(`[Switch] ${message}`)).then((result) => console.log(`Synced ${result.inserted} new Switch records from ${result.histories} games.`)).catch((error) => { console.error(error); process.exitCode = 1 })
