@@ -19,7 +19,7 @@ const journalPosts = mysqlTable('journal_posts', {
 })
 
 const now = new Date()
-const memoryPosts: BlogPost[] = [{ id: 'welcome', slug: 'keep-the-shell', title: '把博客重新装回自己的 Shell', content: '这是一个新的开始。\n\n我想记录代码之外，正在玩的、正在练的，以及那些值得留下的普通日子。', excerpt: '记录代码之外，正在玩的、正在练的，以及那些值得留下的普通日子。', mood: 'curious', status: 'published', createdAt: now.toISOString(), updatedAt: now.toISOString(), publishedAt: now.toISOString() }]
+const memoryPosts: BlogPost[] = [{ id: 'welcome', slug: 'keep-the-shell', title: 'Life, back in the shell.', content: '这是一个新的开始。\n\n我想记录代码之外，正在玩的、正在练的，以及那些值得留下的普通日子。', excerpt: '记录代码之外，正在玩的、正在练的，以及那些值得留下的普通日子。', mood: 'curious', status: 'published', createdAt: now.toISOString(), updatedAt: now.toISOString(), publishedAt: now.toISOString() }]
 const pool = process.env.DATABASE_URL ? mysql.createPool(process.env.DATABASE_URL) : null
 const db = pool ? drizzle(pool) : null
 let schemaReady: Promise<void> | null = null

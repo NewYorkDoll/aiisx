@@ -4,7 +4,7 @@ import { Prompt, PromptInput } from '../components/Prompt'
 import { getPosts } from '../lib/api'
 import type { BlogPost } from '../../shared/types'
 
-const fallbackPost: BlogPost = { id: 'local', slug: 'keep-the-shell', title: '把博客重新装回自己的 Shell', content: '记录代码之外，正在玩的、正在练的，以及那些值得留下的普通日子。', excerpt: '记录代码之外，正在玩的、正在练的，以及那些值得留下的普通日子。', mood: 'curious', status: 'published', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), publishedAt: new Date().toISOString() }
+const fallbackPost: BlogPost = { id: 'local', slug: 'keep-the-shell', title: 'Life, back in the shell.', content: '记录代码之外，正在玩的、正在练的，以及那些值得留下的普通日子。', excerpt: '记录代码之外，正在玩的、正在练的，以及那些值得留下的普通日子。', mood: 'curious', status: 'published', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), publishedAt: new Date().toISOString() }
 
 export default function Journal() {
   const [posts, setPosts] = useState<BlogPost[]>([fallbackPost])
