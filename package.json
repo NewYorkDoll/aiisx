@@ -9,6 +9,7 @@
     "api:dev": "tsx watch server/index.ts",
     "auth:switch": "tsx server/auth-switch.ts",
     "auth:xbox": "tsx server/auth-xbox.ts",
+    "migrate:mysql": "tsx server/migrate-mysql.ts",
     "sync:games": "tsx server/sync-games.ts",
     "sync:platforms": "tsx server/sync-platforms.ts",
     "sync:platforms:schedule": "tsx server/sync-platforms.ts --schedule",

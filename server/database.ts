@@ -3,11 +3,8 @@ import { mkdirSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
 import { createClient } from '@libsql/client'
 
-const databaseUrl = process.env.DATABASE_URL?.trim() || 'file:./data/aiisx.db'
-
-if (/^mysql:/i.test(databaseUrl)) {
-  throw new Error('DATABASE_URL must point to SQLite/libSQL. Move the old MySQL URL to MYSQL_DATABASE_URL before starting the app.')
-}
+const configuredUrl = process.env.SQLITE_DATABASE_URL?.trim() || process.env.DATABASE_URL?.trim()
+const databaseUrl = configuredUrl && !/^mysql:/i.test(configuredUrl) ? configuredUrl : 'file:./data/aiisx.db'
 
 if (databaseUrl.startsWith('file:')) {
   const filePath = databaseUrl.slice('file:'.length)

@@ -34,7 +34,53 @@ npm run sync:platforms
 npm run sync:platforms:schedule
 ```
 
-同步任务默认每天 12:00 和 20:00 执行。数据库使用 `DATABASE_URL` 配置；未配置数据库时只使用进程内存，重启后数据不会保留。
+同步任务默认每天 12:00 和 20:00 执行。所有同步结果都会持久化到下方配置的 SQLite 数据库。
+
+## SQLite 数据库
+
+项目的文章、Switch、Steam、Xbox 和健身数据统一保存在 SQLite。未配置数据库地址时，本地默认使用：
+
+```dotenv
+DATABASE_URL=file:./data/aiisx.db
+```
+
+`data/` 已加入 `.gitignore`。部署前应单独备份数据库文件，不要把运行时数据库提交到 Git。
+
+### 从旧 MySQL 迁移
+
+把原有 MySQL 地址放入 `MYSQL_DATABASE_URL`，然后执行一次迁移：
+
+```dotenv
+MYSQL_DATABASE_URL=mysql://user:password@localhost:3306/aiisx
+DATABASE_URL=file:./data/aiisx.db
+```
+
+```bash
+npm run migrate:mysql
+```
+
+迁移命令会复制文章、Switch 历史、Steam、Xbox 和健身数据，重复执行时会按照各表主键覆盖相同记录。
+
+### Vercel 持久化
+
+Vercel Function 的本地文件不能作为持久数据库。部署 Vercel 时需要使用兼容 libSQL 的托管 SQLite，并配置：
+
+```dotenv
+DATABASE_URL=libsql://your-database-host
+DATABASE_AUTH_TOKEN=your-database-token
+```
+
+本地文件 SQLite 和远程 libSQL 使用同一套表结构与业务代码。
+
+## Xbox 凭证
+
+Xbox 登录凭证会使用 AES-256-GCM 加密并保存到 SQLite。加密密钥优先读取 `XBOX_TOKEN_ENCRYPTION_KEY`，未配置时使用 `ADMIN_TOKEN`：
+
+```dotenv
+XBOX_TOKEN_ENCRYPTION_KEY=请替换为独立随机长字符串
+```
+
+首次执行 `npm run auth:xbox` 或平台同步时，会自动把已有的 `.xbox.tokens.json` 导入数据库。部署后必须保持加密密钥不变，否则无法解密已经保存的 Xbox 凭证。
 
 ## Vite template notes
 
