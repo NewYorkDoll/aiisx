@@ -228,7 +228,7 @@
   border: 1px solid rgba(255,255,255,.055);
   border-radius: .25em;
   box-shadow: 0 .22em .5em rgba(0,0,0,.38), inset 0 1px rgba(255,255,255,.035);
-  flex: 0 0 7.285em;
+  flex: 0 0 6em;
   height: 8.42em;
   overflow: hidden;
   scroll-snap-align: start;
@@ -239,7 +239,8 @@
   background: #15161a;
   border-radius: .22em .22em .12em .12em;
   display: block;
-  height: 4.57em;
+  aspect-ratio: 1;
+  height: auto;
   object-fit: contain;
   width: 100%;
 }
@@ -254,7 +255,7 @@
 
 .cardBody {
   border-top: 1px solid rgba(255,255,255,.045);
-  padding: .48em .68em .52em;
+  padding: .42em .5em .46em;
 }
 
 .cardBody h3 {
@@ -262,31 +263,42 @@
   font-size: clamp(.52rem, .45em, .8rem);
   font-weight: 600;
   letter-spacing: 0;
-  margin: 0 0 .62em;
+  margin: 0 0 .55em;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.cardBody p {
-  color: #777b86;
-  font-size: clamp(.4rem, .3em, .6rem);
-  letter-spacing: .03em;
-  margin: .52em 0 .12em;
+.cardMeta {
+  display: grid;
+  gap: .3em;
+  grid-template-columns: minmax(0, 1fr) auto;
 }
 
-.cardBody time,
-.cardBody strong {
+.cardMeta span {
+  min-width: 0;
+}
+
+.cardMeta small {
+  color: #666a73;
+  display: block;
+  font-size: clamp(.35rem, .24em, .48rem);
+  margin-bottom: .18em;
+  white-space: nowrap;
+}
+
+.cardMeta time,
+.cardMeta strong {
   color: #77bde7;
   display: block;
-  font-size: clamp(.42rem, .32em, .62rem);
+  font-size: clamp(.4rem, .29em, .56rem);
   font-weight: 400;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.cardBody strong { color: #8ed5ea; }
+.cardMeta strong { color: #8ed5ea; }
 
 .screenMessage {
   color: #8f929c;
@@ -606,9 +618,8 @@ button.button { cursor: pointer; }
   .archive { margin-left: -7px; margin-right: -7px; }
   .consoleStage { height: 138px; margin-top: 24px; }
   .switch { font-size: 11px; }
-  .gameCard { flex-basis: 7.6em; }
+  .gameCard { flex-basis: 6em; }
   .cardBody { padding: .25em .4em; }
-  .cardBody p { display: none; }
   .cardBody h3 { margin-bottom: .3em; }
-  .cardBody time, .cardBody strong { margin-top: .25em; }
+  .cardMeta { gap: .18em; }
 }

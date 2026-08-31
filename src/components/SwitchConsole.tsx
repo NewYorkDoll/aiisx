@@ -56,10 +56,10 @@ export function SwitchConsole({ games, loading }: SwitchConsoleProps) {
                 {game.cover ? <img draggable={false} src={game.cover} alt="" /> : <div className={styles.gameFallback}>N</div>}
                 <div className={styles.cardBody}>
                   <h3>{game.title}</h3>
-                  <p>最后游玩时间</p>
-                  <time>{new Intl.DateTimeFormat('zh-CN', { year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(game.playedAt))}</time>
-                  <p>游玩时长</p>
-                  <strong>{(game.minutes / 60).toFixed(2)} 小时</strong>
+                  <div className={styles.cardMeta}>
+                    <span><small>LAST PLAYED</small><time>{new Intl.DateTimeFormat('zh-CN', { year: '2-digit', month: '2-digit', day: '2-digit' }).format(new Date(game.playedAt))}</time></span>
+                    <span><small>PLAY TIME</small><strong>{(game.minutes / 60).toFixed(1)} h</strong></span>
+                  </div>
                 </div>
               </article>)}
             </div>}
