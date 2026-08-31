@@ -12,6 +12,14 @@ type ResourceOptions = {
   staleTime?: number
 }
 
+type ResourceState<T> = {
+  data: T | null
+  error: Error | null
+  key: string
+  loading: boolean
+  refreshing: boolean
+}
+
 const memory = new Map<string, CacheEntry<unknown>>()
 const storagePrefix = 'aiisx:resource:'
 
@@ -55,23 +63,33 @@ export function useResource<T>(key: string, loader: () => Promise<T>, options: R
   const persist = options.persist ?? true
   const staleTime = options.staleTime ?? 60_000
   const initial = readCache<T>(key, persist, maxAge)
-  const [data, setData] = useState<T | null>(() => initial?.data ?? null)
-  const [loading, setLoading] = useState(() => initial?.data === undefined)
-  const [refreshing, setRefreshing] = useState(false)
-  const [error, setError] = useState<Error | null>(null)
+  const [state, setState] = useState<ResourceState<T>>(() => ({
+    data: initial?.data ?? null,
+    error: null,
+    key,
+    loading: initial?.data === undefined,
+    refreshing: false,
+  }))
+  const view = state.key === key ? state : {
+    data: initial?.data ?? null,
+    error: null,
+    key,
+    loading: initial?.data === undefined,
+    refreshing: false,
+  }
 
   useEffect(() => {
     let active = true
     const cached = readCache<T>(key, persist, maxAge)
     if (cached?.data !== undefined) {
       queueMicrotask(() => {
-        if (active) { setData(cached.data as T); setLoading(false) }
+        if (active) setState({ data: cached.data as T, error: null, key, loading: false, refreshing: false })
       })
       if (Date.now() - cached.cachedAt <= staleTime) return () => { active = false }
     }
 
     queueMicrotask(() => {
-      if (active) setRefreshing(cached?.data !== undefined)
+      if (active) setState({ data: cached?.data ?? null, error: null, key, loading: cached?.data === undefined, refreshing: cached?.data !== undefined })
     })
     const existing = memory.get(key) as CacheEntry<T> | undefined
     const request = existing?.promise || loader()
@@ -80,19 +98,22 @@ export function useResource<T>(key: string, loader: () => Promise<T>, options: R
     request
       .then((next) => {
         store(key, next, persist)
-        if (active) { setData(next); setError(null) }
+        if (active) setState({ data: next, error: null, key, loading: false, refreshing: false })
       })
       .catch((reason: unknown) => {
         const current = memory.get(key) as CacheEntry<T> | undefined
         if (current?.promise === request) memory.set(key, { ...current, promise: undefined })
-        if (active) setError(reason instanceof Error ? reason : new Error('Unable to load resource'))
-      })
-      .finally(() => {
-        if (active) { setLoading(false); setRefreshing(false) }
+        if (active) setState({
+          data: cached?.data ?? null,
+          error: reason instanceof Error ? reason : new Error('Unable to load resource'),
+          key,
+          loading: false,
+          refreshing: false,
+        })
       })
 
     return () => { active = false }
   }, [key, loader, maxAge, persist, staleTime])
 
-  return { data, error, loading, refreshing }
+  return { data: view.data, error: view.error, loading: view.loading, refreshing: view.refreshing }
 }
