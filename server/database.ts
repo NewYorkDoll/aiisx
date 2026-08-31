@@ -6,6 +6,10 @@ import { createClient } from '@libsql/client'
 const configuredUrl = process.env.SQLITE_DATABASE_URL?.trim() || process.env.DATABASE_URL?.trim()
 const databaseUrl = configuredUrl && !/^mysql:/i.test(configuredUrl) ? configuredUrl : 'file:./data/aiisx.db'
 
+if (process.env.VERCEL && databaseUrl.startsWith('file:')) {
+  throw new Error('Vercel requires a remote libSQL DATABASE_URL; local SQLite files are not persistent')
+}
+
 if (databaseUrl.startsWith('file:')) {
   const filePath = databaseUrl.slice('file:'.length)
   if (filePath && filePath !== ':memory:') mkdirSync(dirname(resolve(filePath)), { recursive: true })

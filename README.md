@@ -72,6 +72,68 @@ DATABASE_AUTH_TOKEN=your-database-token
 
 本地文件 SQLite 和远程 libSQL 使用同一套表结构与业务代码。
 
+## Vercel 部署
+
+### 1. 上传现有 SQLite
+
+先在本地完成 Xbox 登录，确保最新凭证已经加密写入 `data/aiisx.db`：
+
+```bash
+npm run auth:xbox
+```
+
+Windows 使用 WSL 安装 Turso CLI，然后从现有文件创建远程数据库：
+
+```bash
+turso auth login --headless
+turso db create aiisx --from-file ./data/aiisx.db
+turso db show aiisx --url
+turso db tokens create aiisx
+```
+
+最后两个命令分别得到 `DATABASE_URL` 和 `DATABASE_AUTH_TOKEN`。
+
+### 2. 配置 Vercel
+
+在 Vercel 导入 GitHub 仓库 `NewYorkDoll/aiisx`，Framework Preset 选择 Vite。项目已经通过 `vercel.json` 固定以下配置：
+
+```text
+Build Command: npm run build
+Output Directory: dist
+Node.js: 24.x
+```
+
+在 Project Settings / Environment Variables 中配置 Production 环境变量：
+
+```dotenv
+DATABASE_URL=libsql://your-database-host
+DATABASE_AUTH_TOKEN=your-database-token
+ADMIN_TOKEN=与本地保持一致
+CRON_SECRET=独立随机长字符串
+KEEPSTRONG_BASE_URL=https://lianlian.gzyunke.cn
+KEEPSTRONG_API_KEY=
+KEEPSTRONG_TIMEZONE_OFFSET=480
+SWITCH_CLIENT_ID=
+SWITCH_SESSION_TOKEN=
+STEAM_API_KEY=
+STEAM_ID=
+```
+
+不要在 Vercel 设置 `SQLITE_DATABASE_URL=file:...` 或 `HTTPS_PROXY`。当前 Xbox 凭证使用本地 `ADMIN_TOKEN` 加密，因此部署环境中的 `ADMIN_TOKEN` 必须完全相同；如果本地明确设置过 `XBOX_TOKEN_ENCRYPTION_KEY`，部署时也必须设置相同值。
+
+### 3. 验证部署
+
+部署成功后依次检查：
+
+```text
+https://your-domain.vercel.app/api/health
+https://your-domain.vercel.app/game-are-life
+https://your-domain.vercel.app/fitness
+https://your-domain.vercel.app/login
+```
+
+`vercel.json` 配置了北京时间约 12:00 和 20:00 的两次平台同步。Vercel Cron 使用 UTC，因此对应表达式为 `0 4 * * *` 和 `0 12 * * *`。Hobby 套餐的触发时间可能在对应小时内浮动。
+
 ## Xbox 凭证
 
 Xbox 登录凭证会使用 AES-256-GCM 加密并保存到 SQLite。加密密钥优先读取 `XBOX_TOKEN_ENCRYPTION_KEY`，未配置时使用 `ADMIN_TOKEN`：

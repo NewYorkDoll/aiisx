@@ -3,6 +3,9 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
+  "engines": {
+    "node": "24.x"
+  },
   "scripts": {
     "dev": "vite",
     "api": "tsx server/index.ts",
@@ -15,7 +18,7 @@
     "sync:platforms:schedule": "tsx server/sync-platforms.ts --schedule",
     "dev:all": "concurrently \"npm run api:dev\" \"npm run dev\"",
     "typecheck:server": "tsc --noEmit -p tsconfig.server.json",
-    "build": "tsc -b && vite build",
+    "build": "npm run typecheck:server && tsc -b && vite build",
     "lint": "oxlint",
     "preview": "vite preview"
   },
