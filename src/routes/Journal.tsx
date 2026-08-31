@@ -22,7 +22,7 @@ function ActivityTarget({ item }: { item: ActivityItem }) {
 }
 
 export default function Journal() {
-  const [posts, setPosts] = useState<BlogPost[]>([fallbackPost])
+  const [posts, setPosts] = useState<BlogPost[]>([])
   const [switchGames, setSwitchGames] = useState<GameRecord[]>([])
   const [steam, setSteam] = useState<SteamSnapshot | null>(null)
   const [xbox, setXbox] = useState<XboxSnapshot | null>(null)
@@ -36,7 +36,7 @@ export default function Journal() {
   useEffect(() => {
     let active = true
     Promise.all([
-      getPosts().then((items) => { if (active) { setPosts(items.length ? items : [fallbackPost]); setConnected(true) } }),
+      getPosts().then((items) => { if (active) { setPosts(items); setConnected(true) } }),
       getGames().then((items) => { if (active) setSwitchGames(items) }).catch(() => undefined),
       getSteam().then((data) => { if (active) setSteam(data) }).catch(() => undefined),
       getXbox().then((data) => { if (active) setXbox(data) }).catch(() => undefined),
