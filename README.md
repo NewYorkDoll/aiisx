@@ -44,7 +44,7 @@ npm run sync:platforms:schedule
 DATABASE_URL=file:./data/aiisx.db
 ```
 
-`data/` 已加入 `.gitignore`。部署前应单独备份数据库文件，不要把运行时数据库提交到 Git。
+`data/` 已加入 `.gitignore`。不要把运行时数据库提交到 Git。生产数据库的快照、按时间点恢复和回切步骤见 [生产运维手册](docs/operations.md)。
 
 ### 从旧 MySQL 迁移
 
@@ -133,6 +133,8 @@ https://your-domain.vercel.app/login
 ```
 
 `vercel.json` 配置了北京时间约 12:00 和 20:00 的两次平台同步。Vercel Cron 使用 UTC，因此对应表达式为 `0 4 * * *` 和 `0 12 * * *`。Hobby 套餐的触发时间可能在对应小时内浮动。
+
+生产环境的备份、恢复与故障处理流程见 [生产运维手册](docs/operations.md)。
 
 ## Xbox 凭证
 
