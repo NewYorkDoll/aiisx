@@ -11,10 +11,21 @@ function mapPost(post: Row): BlogPost {
     content: String(post.content),
     excerpt: String(post.excerpt),
     mood: String(post.mood),
+    tags: parseTags(post.tags),
     status: String(post.status) as BlogPost['status'],
     createdAt: String(post.created_at),
     updatedAt: String(post.updated_at),
     publishedAt: post.published_at === null ? null : String(post.published_at),
+  }
+}
+
+function parseTags(value: Row[string]) {
+  if (typeof value !== 'string') return []
+  try {
+    const tags = JSON.parse(value) as unknown
+    return Array.isArray(tags) ? tags.filter((tag): tag is string => typeof tag === 'string') : []
+  } catch {
+    return []
   }
 }
 
@@ -27,11 +38,27 @@ function excerpt(content: string) {
 }
 
 export const repository = {
-  async list(status: 'draft' | 'published' | 'all' = 'published') {
+  async list(status: 'draft' | 'published' | 'all' = 'published', filters: { query?: string; tag?: string } = {}) {
     await ensureDatabaseSchema()
-    const result = status === 'all'
-      ? await database.execute('SELECT * FROM journal_posts ORDER BY updated_at DESC')
-      : await database.execute({ sql: 'SELECT * FROM journal_posts WHERE status = ? ORDER BY updated_at DESC', args: [status] })
+    const conditions: string[] = []
+    const args: Array<string> = []
+    if (status !== 'all') {
+      conditions.push('status = ?')
+      args.push(status)
+    }
+    const query = filters.query?.trim().toLowerCase()
+    if (query) {
+      conditions.push("(LOWER(title) LIKE ? OR LOWER(content) LIKE ? OR LOWER(mood) LIKE ? OR LOWER(tags) LIKE ?)")
+      const pattern = `%${query}%`
+      args.push(pattern, pattern, pattern, pattern)
+    }
+    const tag = filters.tag?.trim().toLowerCase()
+    if (tag) {
+      conditions.push('LOWER(tags) LIKE ?')
+      args.push(`%${JSON.stringify(tag)}%`)
+    }
+    const where = conditions.length ? ` WHERE ${conditions.join(' AND ')}` : ''
+    const result = await database.execute({ sql: `SELECT * FROM journal_posts${where} ORDER BY updated_at DESC`, args })
     return result.rows.map(mapPost)
   },
 
@@ -55,9 +82,9 @@ export const repository = {
     }
     await database.execute({
       sql: `INSERT INTO journal_posts
-        (id, slug, title, content, excerpt, mood, status, created_at, updated_at, published_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      args: [post.id, post.slug, post.title, post.content, post.excerpt, post.mood, post.status, post.createdAt, post.updatedAt, post.publishedAt],
+        (id, slug, title, content, excerpt, mood, tags, status, created_at, updated_at, published_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      args: [post.id, post.slug, post.title, post.content, post.excerpt, post.mood, JSON.stringify(post.tags), post.status, post.createdAt, post.updatedAt, post.publishedAt],
     })
     return post
   },
@@ -76,9 +103,9 @@ export const repository = {
     }
     await database.execute({
       sql: `UPDATE journal_posts
-        SET title = ?, content = ?, excerpt = ?, mood = ?, status = ?, updated_at = ?, published_at = ?
+        SET title = ?, content = ?, excerpt = ?, mood = ?, tags = ?, status = ?, updated_at = ?, published_at = ?
         WHERE slug = ?`,
-      args: [post.title, post.content, post.excerpt, post.mood, post.status, post.updatedAt, post.publishedAt, slug],
+      args: [post.title, post.content, post.excerpt, post.mood, JSON.stringify(post.tags), post.status, post.updatedAt, post.publishedAt, slug],
     })
     return post
   },

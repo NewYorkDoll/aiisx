@@ -41,6 +41,7 @@ export default function Manage() {
         title: post.title,
         content: post.content,
         mood: post.mood,
+        tags: post.tags,
         status: post.status === 'draft' ? 'published' : 'draft',
       })
       setPosts((items) => items.map((item) => item.id === updated.id ? updated : item))

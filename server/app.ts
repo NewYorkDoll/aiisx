@@ -61,6 +61,14 @@ function loginClientKey(c: Context, secret: string) {
   return createHmac('sha256', secret).update(address).digest('hex')
 }
 
+function xml(value: string) {
+  return value.replace(/[<>&'"]/g, (character) => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', "'": '&apos;', '"': '&quot;' })[character] || character)
+}
+
+function siteUrl() {
+  return (process.env.SITE_URL || 'https://aiisx.com').replace(/\/$/, '')
+}
+
 app.post('/api/auth/login', async (c) => {
   const secret = process.env.ADMIN_TOKEN
   if (!secret) return c.json({ message: 'Admin login is not configured. Set ADMIN_TOKEN first.' }, 503)
@@ -91,6 +99,37 @@ app.get('/api/games', async (c) => c.json({ items: await listGames().catch(() =>
 app.get('/api/fitness', async (c) => c.json(await getStoredFitnessSnapshot().catch(() => null) || { weight: null, weightUnit: 'kg', sessions: 0, minutes: 0, planName: null, todayName: null, fetchedAt: new Date().toISOString(), recentActions: [], message: 'no fitness sync yet - run npm run sync:platforms' }))
 app.get('/api/steam', async (c) => c.json(await getStoredSteamSnapshot().catch(() => null) || { configured: Boolean(process.env.STEAM_API_KEY && process.env.STEAM_ID), profile: null, playTimeMinutes: 0, games: [], fetchedAt: new Date().toISOString(), message: 'no Steam sync yet - run npm run sync:platforms' }))
 app.get('/api/xbox', async (c) => c.json(await getStoredXboxSnapshot().catch(() => null) || { configured: false, profile: null, state: 'Unknown', currentGame: null, games: [], fetchedAt: new Date().toISOString(), message: 'no Xbox sync yet - run npm run sync:platforms' }))
+app.get('/api/rss.xml', async (c) => {
+  const posts = await repository.list('published')
+  const baseUrl = siteUrl()
+  const items = posts.slice(0, 30).map((post) => `
+    <item>
+      <title>${xml(post.title)}</title>
+      <link>${baseUrl}/journal/${encodeURIComponent(post.slug)}</link>
+      <guid isPermaLink="true">${baseUrl}/journal/${encodeURIComponent(post.slug)}</guid>
+      <description>${xml(post.excerpt)}</description>
+      <pubDate>${new Date(post.publishedAt || post.updatedAt).toUTCString()}</pubDate>
+      ${post.tags.map((tag) => `<category>${xml(tag)}</category>`).join('')}
+    </item>`).join('')
+  c.header('Content-Type', 'application/rss+xml; charset=utf-8')
+  c.header('Cache-Control', 'public, max-age=0, s-maxage=900')
+  return c.body(`<?xml version="1.0" encoding="UTF-8" ?>
+<rss version="2.0"><channel>
+  <title>aiisx / personal system</title>
+  <link>${baseUrl}</link>
+  <description>代码之外，正在玩的、正在练的，以及值得留下的普通日子。</description>
+  <language>zh-CN</language>${items}
+</channel></rss>`)
+})
+app.get('/api/sitemap.xml', async (c) => {
+  const posts = await repository.list('published')
+  const baseUrl = siteUrl()
+  const routes = ['', '/game-are-life', '/fitness'].map((path) => `<url><loc>${baseUrl}${path}</loc></url>`)
+  const articles = posts.map((post) => `<url><loc>${baseUrl}/journal/${encodeURIComponent(post.slug)}</loc><lastmod>${post.updatedAt}</lastmod></url>`)
+  c.header('Content-Type', 'application/xml; charset=utf-8')
+  c.header('Cache-Control', 'public, max-age=0, s-maxage=900')
+  return c.body(`<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">${[...routes, ...articles].join('')}</urlset>`)
+})
 
 app.get('/api/cron/:slot', async (c) => {
   if (!process.env.CRON_SECRET) return c.json({ message: 'Cron is not configured' }, 503)
@@ -113,7 +152,7 @@ app.get('/api/posts', async (c) => {
   const rawStatus = c.req.query('status') || 'published'
   const status = rawStatus === 'draft' || rawStatus === 'all' ? rawStatus : 'published'
   if (status !== 'published' && !isAdmin(c)) return c.json({ message: 'Unauthorized' }, 401)
-  return c.json({ items: await repository.list(status) })
+  return c.json({ items: await repository.list(status, { query: c.req.query('q'), tag: c.req.query('tag') }) })
 })
 
 app.get('/api/posts/:slug', async (c) => {

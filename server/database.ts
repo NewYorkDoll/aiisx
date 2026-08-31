@@ -30,6 +30,7 @@ const schema = [
     content TEXT NOT NULL,
     excerpt TEXT NOT NULL,
     mood TEXT NOT NULL,
+    tags TEXT NOT NULL DEFAULT '[]',
     status TEXT NOT NULL CHECK (status IN ('draft', 'published')),
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL,
@@ -152,9 +153,17 @@ const schema = [
 
 let schemaReady: Promise<void> | undefined
 
+async function initializeDatabaseSchema() {
+  await database.batch(schema.map((sql) => ({ sql, args: [] })), 'write')
+  const columns = await database.execute('PRAGMA table_info(journal_posts)')
+  if (!columns.rows.some((column) => String(column.name) === 'tags')) {
+    await database.execute("ALTER TABLE journal_posts ADD COLUMN tags TEXT NOT NULL DEFAULT '[]'")
+  }
+}
+
 export function ensureDatabaseSchema() {
   if (!schemaReady) {
-    schemaReady = database.batch(schema.map((sql) => ({ sql, args: [] })), 'write').then(() => undefined)
+    schemaReady = initializeDatabaseSchema()
   }
   return schemaReady
 }

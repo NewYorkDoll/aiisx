@@ -4,6 +4,8 @@ export const postInputSchema = z.object({
   title: z.string().trim().min(1).max(120),
   content: z.string().trim().min(1).max(30_000),
   mood: z.string().trim().max(32).default('curious'),
+  tags: z.array(z.string().trim().min(1).max(24)).max(6).default([])
+    .transform((tags) => [...new Set(tags.map((tag) => tag.toLowerCase()))]),
   status: z.enum(['draft', 'published']).default('draft'),
 })
 

@@ -9,6 +9,7 @@ export default function Write() {
   const [title, setTitle] = useState('')
   const [content, setContent] = useState('')
   const [mood, setMood] = useState('curious')
+  const [tags, setTags] = useState<string[]>([])
   const [status, setStatus] = useState<'draft' | 'published'>('draft')
   const [saving, setSaving] = useState(false)
   const [loading, setLoading] = useState(Boolean(slug))
@@ -24,6 +25,7 @@ export default function Write() {
       setTitle(post.title)
       setContent(post.content)
       setMood(post.mood)
+      setTags(post.tags)
       setStatus(post.status)
     }).catch(() => setMessage('无法读取文章，请从管理页检查管理员令牌')).finally(() => setLoading(false))
   }, [slug])
@@ -31,7 +33,7 @@ export default function Write() {
   async function submit(event: React.FormEvent) {
     event.preventDefault(); setSaving(true); setMessage('')
     try {
-      const input = { title, content, mood, status }
+      const input = { title, content, mood, tags, status }
       const post = slug ? await updatePost(slug, input) : await createPost(input)
       await navigate({ to: post.status === 'draft' ? '/journal/manage' : '/' })
     } catch { setMessage('保存失败，请检查管理员令牌或 API 服务') }
