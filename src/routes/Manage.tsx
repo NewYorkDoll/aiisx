@@ -1,25 +1,29 @@
 import { useEffect, useState } from 'react'
-import { Eye, EyeOff, FilePenLine, LogOut, RefreshCw, Trash2 } from 'lucide-react'
+import { Check, Copy, Eye, EyeOff, FilePenLine, Film, LogOut, RefreshCw, Trash2 } from 'lucide-react'
 import { Link, useNavigate } from '@tanstack/react-router'
 import { Prompt, PromptInput } from '../components/Prompt'
-import { deletePost, getAuthStatus, getPosts, getSyncRuns, logout, updatePost } from '../lib/api'
-import type { BlogPost, SyncRun } from '../../shared/types'
+import { deleteMedia, deletePost, getAuthStatus, getMediaAssets, getPosts, getSyncRuns, logout, updatePost } from '../lib/api'
+import type { BlogPost, MediaAsset, SyncRun } from '../../shared/types'
 
 export default function Manage() {
   const [posts, setPosts] = useState<BlogPost[]>([])
   const [syncRuns, setSyncRuns] = useState<SyncRun[]>([])
+  const [media, setMedia] = useState<MediaAsset[]>([])
   const [message, setMessage] = useState('')
   const [messageKind, setMessageKind] = useState<'error' | 'success'>('error')
   const [loading, setLoading] = useState(true)
   const [busySlug, setBusySlug] = useState('')
   const [confirmSlug, setConfirmSlug] = useState('')
+  const [confirmMedia, setConfirmMedia] = useState('')
+  const [busyMedia, setBusyMedia] = useState('')
+  const [copiedMedia, setCopiedMedia] = useState('')
   const navigate = useNavigate()
 
   useEffect(() => {
     let active = true
     getAuthStatus()
-      .then(async (auth) => { if (!auth.authenticated) { await navigate({ to: '/login' }); return }; return Promise.all([getPosts('all'), getSyncRuns()]) })
-      .then((result) => { if (active && result) { setPosts(result[0]); setSyncRuns(result[1]) } })
+      .then(async (auth) => { if (!auth.authenticated) { await navigate({ to: '/login' }); return }; return Promise.all([getPosts('all'), getSyncRuns(), getMediaAssets()]) })
+      .then((result) => { if (active && result) { setPosts(result[0]); setSyncRuns(result[1]); setMedia(result[2]) } })
       .catch(() => { if (active) { setMessageKind('error'); setMessage('无法读取文章，请检查管理员令牌或 API 服务') } })
       .finally(() => { if (active) setLoading(false) })
     return () => { active = false }
@@ -64,6 +68,27 @@ export default function Manage() {
     } finally { setBusySlug('') }
   }
 
+  async function copyMedia(asset: MediaAsset) {
+    await navigator.clipboard.writeText(asset.url)
+    setCopiedMedia(asset.id)
+    window.setTimeout(() => setCopiedMedia((current) => current === asset.id ? '' : current), 1800)
+  }
+
+  async function removeMedia(asset: MediaAsset) {
+    setBusyMedia(asset.id)
+    setMessage('')
+    try {
+      await deleteMedia(asset.id)
+      setMedia((items) => items.filter((item) => item.id !== asset.id))
+      setConfirmMedia('')
+      setMessageKind('success')
+      setMessage(`deleted media / ${asset.originalName}`)
+    } catch (error) {
+      setMessageKind('error')
+      setMessage(error instanceof Error ? error.message : '媒体删除失败')
+    } finally { setBusyMedia('') }
+  }
+
   const draftCount = posts.filter((post) => post.status === 'draft').length
 
   return (
@@ -103,6 +128,32 @@ export default function Manage() {
             </article>
           ))}
           {!loading && !syncRuns.length && <p className="dim">no sync history yet / next cron run will appear here</p>}
+        </div>
+      </Prompt>
+      <Prompt command="mediactl list --limit=60">
+        <div className="media-library">
+          <div className="media-library-head"><span>media archive</span><strong>{media.length.toString().padStart(2, '0')} objects</strong></div>
+          <div className="media-library-grid">
+            {media.map((asset) => <article className={confirmMedia === asset.id ? 'confirming' : ''} key={asset.id}>
+              <div className="media-thumb">
+                {asset.kind === 'image' ? <img src={asset.url} alt="" loading="lazy" /> : asset.posterUrl ? <img src={asset.posterUrl} alt="" loading="lazy" /> : <Film size={24} />}
+                <span>{asset.kind}</span>
+              </div>
+              <div className="media-info">
+                <strong title={asset.originalName}>{asset.originalName}</strong>
+                <span>{asset.status} / {(asset.size / 1024 / 1024).toFixed(asset.size < 1024 * 1024 ? 2 : 1)} MB</span>
+              </div>
+              <div className="manage-actions">
+                <button type="button" onClick={() => void copyMedia(asset)} aria-label={`复制 ${asset.originalName} 地址`} title="复制媒体地址">{copiedMedia === asset.id ? <Check size={15} /> : <Copy size={15} />}</button>
+                <button type="button" onClick={() => setConfirmMedia(asset.id)} disabled={busyMedia === asset.id} aria-label={`删除 ${asset.originalName}`} title="删除未引用媒体"><Trash2 size={15} /></button>
+              </div>
+              {confirmMedia === asset.id && <div className="delete-confirm" role="alertdialog" aria-labelledby={`delete-media-${asset.id}`}>
+                <span id={`delete-media-${asset.id}`}><Trash2 size={13} /> rm &quot;{asset.originalName}&quot;?</span>
+                <div><button type="button" className="confirm-delete" onClick={() => void removeMedia(asset)} disabled={busyMedia === asset.id}>delete</button><button type="button" onClick={() => setConfirmMedia('')} disabled={busyMedia === asset.id}>cancel</button></div>
+              </div>}
+            </article>)}
+          </div>
+          {!loading && !media.length && <p className="dim">no media uploaded yet</p>}
         </div>
       </Prompt>
       <Prompt command="ls journal/* --all">

@@ -117,6 +117,11 @@ SWITCH_CLIENT_ID=
 SWITCH_SESSION_TOKEN=
 STEAM_API_KEY=
 STEAM_ID=
+R2_ACCOUNT_ID=Cloudflare账户ID
+R2_ACCESS_KEY_ID=R2令牌的Access Key ID
+R2_SECRET_ACCESS_KEY=R2令牌的Secret Access Key
+R2_BUCKET=aiisx-media
+R2_PUBLIC_URL=https://media.aiisx.com
 ```
 
 不要在 Vercel 设置 `SQLITE_DATABASE_URL=file:...` 或 `HTTPS_PROXY`。当前 Xbox 凭证使用本地 `ADMIN_TOKEN` 加密，因此部署环境中的 `ADMIN_TOKEN` 必须完全相同；如果本地明确设置过 `XBOX_TOKEN_ENCRYPTION_KEY`，部署时也必须设置相同值。
@@ -135,6 +140,34 @@ https://your-domain.vercel.app/login
 `vercel.json` 配置了北京时间约 12:00 和 20:00 的两次平台同步。Vercel Cron 使用 UTC，因此对应表达式为 `0 4 * * *` 和 `0 12 * * *`。Hobby 套餐的触发时间可能在对应小时内浮动。
 
 生产环境的备份、恢复与故障处理流程见 [生产运维手册](docs/operations.md)。
+
+## 图片与视频
+
+文章编辑器支持 JPEG、PNG、WebP、GIF、AVIF 图片以及 MP4、WebM 视频。图片上限为 25 MB，视频上限为 500 MB。文件由浏览器使用 10 分钟有效的签名地址直接上传到 Cloudflare R2，不经过 Vercel Function；R2 凭据始终保留在服务端。视频会在浏览器中尽量生成一张本地封面。
+
+在 Cloudflare 控制台创建名为 `aiisx-media` 的 R2 bucket，然后完成以下配置：
+
+1. 在 bucket 的 Settings / Custom Domains 中绑定 `media.aiisx.com`。
+2. 创建只允许该 bucket 读写对象的 R2 API Token，把 S3 凭据和账户 ID 写入 Vercel 环境变量。
+3. 在 bucket 的 CORS Policy 中保存：
+
+```json
+[
+  {
+    "AllowedOrigins": [
+      "https://aiisx.com",
+      "http://localhost:5173"
+    ],
+    "AllowedMethods": ["PUT"],
+    "AllowedHeaders": ["Content-Type"],
+    "MaxAgeSeconds": 3600
+  }
+]
+```
+
+生产环境只需要 `https://aiisx.com`；`http://localhost:5173` 用于本地编辑器测试。Cloudflare 签名上传必须使用 R2 S3 API 地址，公开文章则通过 `R2_PUBLIC_URL` 的自定义域名读取媒体。
+
+编辑器中的图片使用标准写法 `![说明](图片地址)`。原生视频和可信播放器由编辑器自动插入结构化指令；外部播放器目前只允许 YouTube 与 Bilibili，不渲染文章中的任意 HTML 或未知 iframe。
 
 ## Xbox 凭证
 
