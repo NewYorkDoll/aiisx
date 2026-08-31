@@ -237,13 +237,17 @@
   padding: 0;
   scroll-snap-align: start;
   text-align: left;
-  transition: border-color .16s ease, box-shadow .16s ease, transform .16s ease;
+  transition: border-color .16s ease, box-shadow .16s ease, filter .16s ease, opacity .16s ease;
+}
+
+.gameCard:not(.selected) {
+  filter: brightness(.82) saturate(.68);
+  opacity: .68;
 }
 
 .gameCard.selected {
-  border-color: #42d4eb;
-  box-shadow: 0 0 0 2px #00c3e3, 0 .28em .65em rgba(0,0,0,.5);
-  transform: translateY(-.08em);
+  border-color: rgba(255,255,255,.17);
+  box-shadow: 0 .22em .5em rgba(0,0,0,.42), inset 0 -.1em #00c3e3;
 }
 
 .gameCard:focus-visible {
