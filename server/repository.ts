@@ -1,111 +1,91 @@
 import { randomUUID } from 'node:crypto'
-import { drizzle } from 'drizzle-orm/mysql2'
-import { mysqlTable, varchar, text, datetime } from 'drizzle-orm/mysql-core'
-import { desc, eq } from 'drizzle-orm'
-import mysql from 'mysql2/promise'
+import type { Row } from '@libsql/client'
 import type { BlogPost, PostInput } from '../shared/types'
+import { database, ensureDatabaseSchema } from './database'
 
-const journalPosts = mysqlTable('journal_posts', {
-  id: varchar('id', { length: 36 }).primaryKey(),
-  slug: varchar('slug', { length: 120 }).notNull().unique(),
-  title: varchar('title', { length: 120 }).notNull(),
-  content: text('content').notNull(),
-  excerpt: varchar('excerpt', { length: 180 }).notNull(),
-  mood: varchar('mood', { length: 32 }).notNull(),
-  status: varchar('status', { length: 16 }).notNull(),
-  createdAt: datetime('created_at').notNull(),
-  updatedAt: datetime('updated_at').notNull(),
-  publishedAt: datetime('published_at'),
-})
-
-const now = new Date()
-const memoryPosts: BlogPost[] = [{ id: 'welcome', slug: 'keep-the-shell', title: 'Life, back in the shell.', content: '这是一个新的开始。\n\n我想记录代码之外，正在玩的、正在练的，以及那些值得留下的普通日子。', excerpt: '记录代码之外，正在玩的、正在练的，以及那些值得留下的普通日子。', mood: 'curious', status: 'published', createdAt: now.toISOString(), updatedAt: now.toISOString(), publishedAt: now.toISOString() }]
-const pool = process.env.DATABASE_URL ? mysql.createPool(process.env.DATABASE_URL) : null
-const db = pool ? drizzle(pool) : null
-let schemaReady: Promise<void> | null = null
-
-async function ensureSchema() {
-  if (!pool || !db) return
-  if (!schemaReady) schemaReady = pool.query('CREATE TABLE IF NOT EXISTS journal_posts (id VARCHAR(36) PRIMARY KEY, slug VARCHAR(120) NOT NULL UNIQUE, title VARCHAR(120) NOT NULL, content TEXT NOT NULL, excerpt VARCHAR(180) NOT NULL, mood VARCHAR(32) NOT NULL, status VARCHAR(16) NOT NULL, created_at DATETIME NOT NULL, updated_at DATETIME NOT NULL, published_at DATETIME NULL)') .then(() => undefined)
-  await schemaReady
+function mapPost(post: Row): BlogPost {
+  return {
+    id: String(post.id),
+    slug: String(post.slug),
+    title: String(post.title),
+    content: String(post.content),
+    excerpt: String(post.excerpt),
+    mood: String(post.mood),
+    status: String(post.status) as BlogPost['status'],
+    createdAt: String(post.created_at),
+    updatedAt: String(post.updated_at),
+    publishedAt: post.published_at === null ? null : String(post.published_at),
+  }
 }
 
-function mapPost(post: typeof journalPosts.$inferSelect): BlogPost {
-  return { id: post.id, slug: post.slug, title: post.title, content: post.content, excerpt: post.excerpt, mood: post.mood, status: post.status as BlogPost['status'], createdAt: post.createdAt.toISOString(), updatedAt: post.updatedAt.toISOString(), publishedAt: post.publishedAt?.toISOString() || null }
+function slugify(title: string) {
+  return `${title.toLowerCase().replace(/[^a-z0-9\u4e00-\u9fff]+/g, '-').replace(/^-|-$/g, '').slice(0, 48) || 'daily-note'}-${Date.now().toString(36)}`
 }
 
-function slugify(title: string) { return `${title.toLowerCase().replace(/[^a-z0-9\u4e00-\u9fff]+/g, '-').replace(/^-|-$/g, '').slice(0, 48) || 'daily-note'}-${Date.now().toString(36)}` }
-function excerpt(content: string) { return content.replace(/[#*_>`]/g, '').replace(/\s+/g, ' ').trim().slice(0, 140) }
+function excerpt(content: string) {
+  return content.replace(/[#*_>`]/g, '').replace(/\s+/g, ' ').trim().slice(0, 140)
+}
 
 export const repository = {
   async list(status: 'draft' | 'published' | 'all' = 'published') {
-    await ensureSchema()
-    if (db) {
-      const rows = await db.select().from(journalPosts).orderBy(desc(journalPosts.updatedAt))
-      return rows.filter((post) => status === 'all' || post.status === status).map(mapPost)
-    }
-    return memoryPosts.filter((post) => status === 'all' || post.status === status).sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
+    await ensureDatabaseSchema()
+    const result = status === 'all'
+      ? await database.execute('SELECT * FROM journal_posts ORDER BY updated_at DESC')
+      : await database.execute({ sql: 'SELECT * FROM journal_posts WHERE status = ? ORDER BY updated_at DESC', args: [status] })
+    return result.rows.map(mapPost)
   },
+
   async get(slug: string) {
-    await ensureSchema()
-    if (db) { const rows = await db.select().from(journalPosts).where(eq(journalPosts.slug, slug)).limit(1); return rows[0] ? mapPost(rows[0]) : null }
-    return memoryPosts.find((post) => post.slug === slug) || null
+    await ensureDatabaseSchema()
+    const result = await database.execute({ sql: 'SELECT * FROM journal_posts WHERE slug = ? LIMIT 1', args: [slug] })
+    return result.rows[0] ? mapPost(result.rows[0]) : null
   },
+
   async create(input: PostInput) {
-    const timestamp = new Date()
-    const post: BlogPost = { ...input, id: randomUUID(), slug: slugify(input.title), excerpt: excerpt(input.content), createdAt: timestamp.toISOString(), updatedAt: timestamp.toISOString(), publishedAt: input.status === 'published' ? timestamp.toISOString() : null }
-    await ensureSchema()
-    if (db) {
-      await db.insert(journalPosts).values({ ...post, content: post.content, createdAt: timestamp, updatedAt: timestamp, publishedAt: post.publishedAt ? timestamp : null })
-      return post
+    await ensureDatabaseSchema()
+    const timestamp = new Date().toISOString()
+    const post: BlogPost = {
+      ...input,
+      id: randomUUID(),
+      slug: slugify(input.title),
+      excerpt: excerpt(input.content),
+      createdAt: timestamp,
+      updatedAt: timestamp,
+      publishedAt: input.status === 'published' ? timestamp : null,
     }
-    memoryPosts.unshift(post)
+    await database.execute({
+      sql: `INSERT INTO journal_posts
+        (id, slug, title, content, excerpt, mood, status, created_at, updated_at, published_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      args: [post.id, post.slug, post.title, post.content, post.excerpt, post.mood, post.status, post.createdAt, post.updatedAt, post.publishedAt],
+    })
     return post
   },
+
   async update(slug: string, input: PostInput) {
     const existing = await repository.get(slug)
     if (!existing) return null
 
-    const timestamp = new Date()
+    const timestamp = new Date().toISOString()
     const post: BlogPost = {
       ...existing,
       ...input,
       excerpt: excerpt(input.content),
-      updatedAt: timestamp.toISOString(),
-      publishedAt: input.status === 'published' ? existing.publishedAt || timestamp.toISOString() : null,
+      updatedAt: timestamp,
+      publishedAt: input.status === 'published' ? existing.publishedAt || timestamp : null,
     }
-
-    await ensureSchema()
-    if (db) {
-      await db.update(journalPosts).set({
-        title: post.title,
-        content: post.content,
-        excerpt: post.excerpt,
-        mood: post.mood,
-        status: post.status,
-        updatedAt: timestamp,
-        publishedAt: post.publishedAt ? new Date(post.publishedAt) : null,
-      }).where(eq(journalPosts.slug, slug))
-      return post
-    }
-
-    const index = memoryPosts.findIndex((item) => item.slug === slug)
-    memoryPosts[index] = post
+    await database.execute({
+      sql: `UPDATE journal_posts
+        SET title = ?, content = ?, excerpt = ?, mood = ?, status = ?, updated_at = ?, published_at = ?
+        WHERE slug = ?`,
+      args: [post.title, post.content, post.excerpt, post.mood, post.status, post.updatedAt, post.publishedAt, slug],
+    })
     return post
   },
+
   async remove(slug: string) {
-    const existing = await repository.get(slug)
-    if (!existing) return false
-
-    await ensureSchema()
-    if (db) {
-      await db.delete(journalPosts).where(eq(journalPosts.slug, slug))
-      return true
-    }
-
-    const index = memoryPosts.findIndex((item) => item.slug === slug)
-    if (index === -1) return false
-    memoryPosts.splice(index, 1)
-    return true
+    await ensureDatabaseSchema()
+    const result = await database.execute({ sql: 'DELETE FROM journal_posts WHERE slug = ?', args: [slug] })
+    return result.rowsAffected > 0
   },
 }

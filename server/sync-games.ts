@@ -1,10 +1,10 @@
 import 'dotenv/config'
-import mysql from 'mysql2/promise'
 import * as cheerio from 'cheerio'
 import { ProxyAgent, setGlobalDispatcher } from 'undici'
 import { pathToFileURL } from 'node:url'
 import { resolve } from 'node:path'
 import { ensureSwitchSchema } from './db'
+import { database } from './database'
 
 if (process.env.HTTPS_PROXY) setGlobalDispatcher(new ProxyAgent(process.env.HTTPS_PROXY))
 
@@ -13,7 +13,6 @@ type PlayHistory = { titleId: string; titleName: string; imageUrl?: string; last
 
 const clientId = process.env.SWITCH_CLIENT_ID
 const sessionToken = process.env.SWITCH_SESSION_TOKEN
-const databaseUrl = process.env.DATABASE_URL
 const userAgent = 'com.nintendo.znej/1.13.0 (Android/7.1.2)'
 const playHistoryUrl = 'https://app-api.znej.nintendo.com/api/v2.0/users/me/play_histories'
 
@@ -56,33 +55,35 @@ async function getChineseInfo(titleId: string, fallbackName: string, fallbackCov
 function parseDate(value: string) { return new Date(value.replace(/([+-]\d\d):?\d\d$/, '$1:00')) }
 
 export async function syncGames(progress: Progress = () => undefined) {
-  if (!databaseUrl) throw new Error('DATABASE_URL is required')
-  const pool = mysql.createPool(databaseUrl)
-  try {
-    await ensureSwitchSchema(pool)
-    progress('requesting Nintendo access token...')
-    const token = await getAccessToken(progress)
-    progress('access token received; requesting play history...')
-    const histories = await getHistory(token, progress)
-    progress(`received ${histories.length} play history records; checking database...`)
-    const [rawRows] = await pool.query('SELECT title_id, SUM(play_time) AS total_play_time, MAX(last_played_at) AS last_played_at FROM dwd_switch_game_played_record GROUP BY title_id')
-    const rows = rawRows as Array<{ title_id: string; total_play_time: number; last_played_at: Date }>
-    const previous = new Map(rows.map((row) => [row.title_id, row]))
-    let inserted = 0
-    for (const [index, game] of histories.entries()) {
-      const playedAt = parseDate(game.lastPlayedAt)
-      const old = previous.get(game.titleId)
-      if (old && old.last_played_at.getTime() === playedAt.getTime()) continue
-      const delta = Math.max(0, game.totalPlayedMinutes - Number(old?.total_play_time || 0))
-      progress(`processing ${index + 1}/${histories.length}: ${game.titleName}`)
-      const info = await getChineseInfo(game.titleId, game.titleName, game.imageUrl)
-      await pool.execute('INSERT INTO dwd_switch_game_played_record (title_id, title_name, zh_name, zh_cover, last_played_at, play_time, create_time, update_time) VALUES (?, ?, ?, ?, ?, ?, NOW(), NOW())', [game.titleId, game.titleName, info.name, info.cover, playedAt, delta])
-      inserted += 1
-    }
-    return { histories: histories.length, inserted }
-  } finally {
-    await pool.end()
+  await ensureSwitchSchema()
+  progress('requesting Nintendo access token...')
+  const token = await getAccessToken(progress)
+  progress('access token received; requesting play history...')
+  const histories = await getHistory(token, progress)
+  progress(`received ${histories.length} play history records; checking database...`)
+  const rawRows = await database.execute('SELECT title_id, SUM(play_time) AS total_play_time, MAX(last_played_at) AS last_played_at FROM dwd_switch_game_played_record GROUP BY title_id')
+  const previous = new Map(rawRows.rows.map((row) => [String(row.title_id), {
+    totalPlayTime: Number(row.total_play_time),
+    lastPlayedAt: new Date(String(row.last_played_at)),
+  }]))
+  let inserted = 0
+  for (const [index, game] of histories.entries()) {
+    const playedAt = parseDate(game.lastPlayedAt)
+    const old = previous.get(game.titleId)
+    if (old && old.lastPlayedAt.getTime() === playedAt.getTime()) continue
+    const delta = Math.max(0, game.totalPlayedMinutes - (old?.totalPlayTime || 0))
+    progress(`processing ${index + 1}/${histories.length}: ${game.titleName}`)
+    const info = await getChineseInfo(game.titleId, game.titleName, game.imageUrl)
+    const timestamp = new Date().toISOString()
+    await database.execute({
+      sql: `INSERT INTO dwd_switch_game_played_record
+        (title_id, title_name, zh_name, zh_cover, last_played_at, play_time, create_time, update_time)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      args: [game.titleId, game.titleName, info.name, info.cover, playedAt.toISOString(), delta, timestamp, timestamp],
+    })
+    inserted += 1
   }
+  return { histories: histories.length, inserted }
 }
 
 const isDirectRun = Boolean(process.argv[1]) && import.meta.url === pathToFileURL(resolve(process.argv[1])).href

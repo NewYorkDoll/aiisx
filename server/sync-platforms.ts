@@ -4,6 +4,7 @@ import { fetchSteamSnapshot } from './steam'
 import { fetchXboxSnapshot } from './xbox'
 import { closePlatformStore, saveFitnessSnapshot, saveSteamSnapshot, saveXboxSnapshot } from './platform-store'
 import { syncGames } from './sync-games'
+import { databaseLocation } from './database'
 
 type SyncResult = { platform: string; ok: boolean }
 
@@ -81,7 +82,7 @@ async function syncSwitch(): Promise<SyncResult> {
 
 async function syncPlatforms() {
   const startedAt = performance.now()
-  if (!process.env.DATABASE_URL) log('Database', 'DATABASE_URL is missing; results will only live in this process')
+  log('Database', `using ${databaseLocation}`)
   const tasks: Array<Promise<SyncResult>> = []
   if (process.env.STEAM_API_KEY && process.env.STEAM_ID) {
     tasks.push(syncSteam())
