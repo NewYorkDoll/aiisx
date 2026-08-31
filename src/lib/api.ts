@@ -43,6 +43,11 @@ export async function updatePost(slug: string, input: PostInput) {
   return await response.json() as BlogPost
 }
 
+export async function deletePost(slug: string) {
+  const response = await fetch(`${API_URL}/api/posts/${encodeURIComponent(slug)}`, { method: 'DELETE', headers: adminHeaders(), credentials: 'include' })
+  if (!response.ok) throw new Error('Unable to delete journal entry')
+}
+
 export async function getGames() {
   const response = await fetch(`${API_URL}/api/games`)
   if (!response.ok) throw new Error('Unable to load games')

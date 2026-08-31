@@ -93,4 +93,19 @@ export const repository = {
     memoryPosts[index] = post
     return post
   },
+  async remove(slug: string) {
+    const existing = await repository.get(slug)
+    if (!existing) return false
+
+    await ensureSchema()
+    if (db) {
+      await db.delete(journalPosts).where(eq(journalPosts.slug, slug))
+      return true
+    }
+
+    const index = memoryPosts.findIndex((item) => item.slug === slug)
+    if (index === -1) return false
+    memoryPosts.splice(index, 1)
+    return true
+  },
 }

@@ -1,15 +1,17 @@
 import { useEffect, useState } from 'react'
-import { Eye, EyeOff, FilePenLine, LogOut } from 'lucide-react'
+import { Eye, EyeOff, FilePenLine, LogOut, Trash2 } from 'lucide-react'
 import { Link, useNavigate } from '@tanstack/react-router'
 import { Prompt, PromptInput } from '../components/Prompt'
-import { getAuthStatus, getPosts, logout, updatePost } from '../lib/api'
+import { deletePost, getAuthStatus, getPosts, logout, updatePost } from '../lib/api'
 import type { BlogPost } from '../../shared/types'
 
 export default function Manage() {
   const [posts, setPosts] = useState<BlogPost[]>([])
   const [message, setMessage] = useState('')
+  const [messageKind, setMessageKind] = useState<'error' | 'success'>('error')
   const [loading, setLoading] = useState(true)
   const [busySlug, setBusySlug] = useState('')
+  const [confirmSlug, setConfirmSlug] = useState('')
   const navigate = useNavigate()
 
   useEffect(() => {
@@ -17,7 +19,7 @@ export default function Manage() {
     getAuthStatus()
       .then(async (auth) => { if (!auth.authenticated) { await navigate({ to: '/login' }); return }; return getPosts('all') })
       .then((items) => { if (active && items) setPosts(items) })
-      .catch(() => { if (active) setMessage('无法读取文章，请检查管理员令牌或 API 服务') })
+      .catch(() => { if (active) { setMessageKind('error'); setMessage('无法读取文章，请检查管理员令牌或 API 服务') } })
       .finally(() => { if (active) setLoading(false) })
     return () => { active = false }
   }, [navigate])
@@ -35,8 +37,23 @@ export default function Manage() {
         status: post.status === 'draft' ? 'published' : 'draft',
       })
       setPosts((items) => items.map((item) => item.id === updated.id ? updated : item))
-    } catch { setMessage('状态更新失败，请检查管理员令牌') }
+    } catch { setMessageKind('error'); setMessage('状态更新失败，请检查管理员令牌') }
     finally { setBusySlug('') }
+  }
+
+  async function removePost(post: BlogPost) {
+    setBusySlug(post.slug)
+    setMessage('')
+    try {
+      await deletePost(post.slug)
+      setPosts((items) => items.filter((item) => item.id !== post.id))
+      setConfirmSlug('')
+      setMessageKind('success')
+      setMessage(`deleted / ${post.title}`)
+    } catch {
+      setMessageKind('error')
+      setMessage('删除失败，请检查管理员令牌或 API 服务')
+    } finally { setBusySlug('') }
   }
 
   const draftCount = posts.filter((post) => post.status === 'draft').length
@@ -59,7 +76,7 @@ export default function Manage() {
       <Prompt command="ls journal/* --all">
         <div className="manage-list">
           {loading ? <p className="dim">loading notes...</p> : posts.map((post) => (
-            <article className="manage-row" key={post.id}>
+            <article className={`manage-row ${confirmSlug === post.slug ? 'confirming' : ''}`} key={post.id}>
               <div className="manage-meta">
                 <span className={`post-status ${post.status}`}>{post.status}</span>
                 <time>{new Intl.DateTimeFormat('zh-CN', { dateStyle: 'medium' }).format(new Date(post.updatedAt))}</time>
@@ -73,11 +90,19 @@ export default function Manage() {
                 <button type="button" onClick={() => void toggleStatus(post)} disabled={busySlug === post.slug} aria-label={post.status === 'draft' ? `发布 ${post.title}` : `撤回 ${post.title}`} title={post.status === 'draft' ? '发布文章' : '撤回为草稿'}>
                   {post.status === 'draft' ? <Eye size={16} /> : <EyeOff size={16} />}
                 </button>
+                <button type="button" onClick={() => { setMessage(''); setConfirmSlug(post.slug) }} disabled={busySlug === post.slug} aria-label={`删除 ${post.title}`} title="删除文章"><Trash2 size={16} /></button>
               </div>
+              {confirmSlug === post.slug && <div className="delete-confirm" role="alertdialog" aria-labelledby={`delete-${post.id}`}>
+                <span id={`delete-${post.id}`}><Trash2 size={13} /> rm --force &quot;{post.title}&quot;?</span>
+                <div>
+                  <button type="button" className="confirm-delete" onClick={() => void removePost(post)} disabled={busySlug === post.slug}>delete</button>
+                  <button type="button" onClick={() => setConfirmSlug('')} disabled={busySlug === post.slug}>cancel</button>
+                </div>
+              </div>}
             </article>
           ))}
           {!loading && !posts.length && !message && <p className="dim">no notes yet</p>}
-          {message && <p className="form-message">{message}</p>}
+          {message && <p className={`manage-message ${messageKind}`} aria-live="polite">{message}</p>}
         </div>
       </Prompt>
       <PromptInput />

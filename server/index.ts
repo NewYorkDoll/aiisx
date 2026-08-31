@@ -74,6 +74,11 @@ app.patch('/api/posts/:slug', async (c) => {
   const post = await repository.update(c.req.param('slug'), parsed.data)
   return post ? c.json(post) : c.json({ message: 'Post not found' }, 404)
 })
+app.delete('/api/posts/:slug', async (c) => {
+  if (!isAdmin(c)) return c.json({ message: 'Unauthorized' }, 401)
+  const removed = await repository.remove(c.req.param('slug'))
+  return removed ? c.json({ deleted: true }) : c.json({ message: 'Post not found' }, 404)
+})
 
 const port = Number(process.env.API_PORT || 8787)
 serve({ fetch: app.fetch, port }, (info) => console.log(`aiisx API listening on http://localhost:${info.port}`))
