@@ -4,6 +4,7 @@ import * as cheerio from 'cheerio'
 import { ProxyAgent, setGlobalDispatcher } from 'undici'
 import { pathToFileURL } from 'node:url'
 import { resolve } from 'node:path'
+import { ensureSwitchSchema } from './db'
 
 if (process.env.HTTPS_PROXY) setGlobalDispatcher(new ProxyAgent(process.env.HTTPS_PROXY))
 
@@ -14,6 +15,7 @@ const clientId = process.env.SWITCH_CLIENT_ID
 const sessionToken = process.env.SWITCH_SESSION_TOKEN
 const databaseUrl = process.env.DATABASE_URL
 const userAgent = 'com.nintendo.znej/1.13.0 (Android/7.1.2)'
+const playHistoryUrl = 'https://app-api.znej.nintendo.com/api/v2.0/users/me/play_histories'
 
 type Progress = (message: string) => void
 
@@ -35,7 +37,7 @@ async function getAccessToken(progress: Progress) {
 }
 
 async function getHistory(token: AccessToken, progress: Progress) {
-  const response = await request('https://mypage-api.entry.nintendo.co.jp/api/v1/users/me/play_histories', { headers: { Authorization: `${token.token_type} ${token.access_token}`, 'User-Agent': userAgent } }, (attempt) => progress(`play history request failed; retrying ${attempt}/3...`))
+  const response = await request(playHistoryUrl, { headers: { Authorization: `${token.token_type} ${token.access_token}`, 'User-Agent': userAgent, 'gentry-locale': 'zh-CN' } }, (attempt) => progress(`play history request failed; retrying ${attempt}/3...`))
   if (!response.ok) throw new Error(`Nintendo history request failed: ${response.status}`)
   return (await response.json() as { playHistories?: PlayHistory[] }).playHistories || []
 }
@@ -57,6 +59,7 @@ export async function syncGames(progress: Progress = () => undefined) {
   if (!databaseUrl) throw new Error('DATABASE_URL is required')
   const pool = mysql.createPool(databaseUrl)
   try {
+    await ensureSwitchSchema(pool)
     progress('requesting Nintendo access token...')
     const token = await getAccessToken(progress)
     progress('access token received; requesting play history...')
