@@ -20,7 +20,8 @@
     "typecheck:server": "tsc --noEmit -p tsconfig.server.json",
     "build": "npm run typecheck:server && tsc -b && vite build",
     "lint": "oxlint",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "verify:production": "tsx scripts/verify-production.ts"
   },
   "dependencies": {
     "@hono/node-server": "^2.1.1",

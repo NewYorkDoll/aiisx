@@ -1,0 +1,28 @@
+name: Production health
+
+on:
+  deployment_status:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  deployments: read
+
+jobs:
+  verify:
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.deployment_status.state == 'success' && github.event.deployment.environment == 'Production')
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - name: Verify production endpoints
+        run: npm run verify:production -- "$TARGET_URL"
+        env:
+          TARGET_URL: ${{ github.event_name == 'deployment_status' && github.event.deployment_status.target_url || 'https://aiisx.com' }}
