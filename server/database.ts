@@ -141,6 +141,13 @@ const schema = [
   )`,
   `CREATE INDEX IF NOT EXISTS idx_sync_run_items_run
     ON sync_run_items (run_id, started_at)`,
+  `CREATE TABLE IF NOT EXISTS auth_login_attempts (
+    client_key TEXT PRIMARY KEY,
+    attempt_count INTEGER NOT NULL,
+    first_attempt_at TEXT NOT NULL,
+    blocked_until TEXT,
+    updated_at TEXT NOT NULL
+  )`,
 ]
 
 let schemaReady: Promise<void> | undefined

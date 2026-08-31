@@ -8,9 +8,19 @@ import { listGames } from './db.js'
 import { getStoredFitnessSnapshot, getStoredSteamSnapshot, getStoredXboxSnapshot } from './platform-store.js'
 import { repository } from './repository.js'
 import { listSyncRuns } from './sync-run-store.js'
+import { clearLoginFailures, getLoginBlock, recordLoginFailure } from './login-rate-limit.js'
 
 const app = new Hono()
 app.use('/api/*', cors())
+app.use('*', async (c, next) => {
+  await next()
+  c.header('Content-Security-Policy', "default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' https: data:; connect-src 'self'; font-src 'self' data:")
+  c.header('Permissions-Policy', 'camera=(), microphone=(), geolocation=()')
+  c.header('Referrer-Policy', 'strict-origin-when-cross-origin')
+  c.header('X-Content-Type-Options', 'nosniff')
+  c.header('X-Frame-Options', 'DENY')
+  if (process.env.NODE_ENV === 'production') c.header('Strict-Transport-Security', 'max-age=31536000; includeSubDomains')
+})
 
 const sessionCookie = 'aiisx_admin_session'
 const sessionDays = 7
@@ -45,11 +55,31 @@ function isCronAuthorized(c: Context) {
   return Boolean(secret) && secureEqual(c.req.header('authorization') || '', `Bearer ${secret}`)
 }
 
+function loginClientKey(c: Context, secret: string) {
+  const forwarded = c.req.header('x-forwarded-for')?.split(',')[0]?.trim()
+  const address = forwarded || c.req.header('cf-connecting-ip') || 'unknown'
+  return createHmac('sha256', secret).update(address).digest('hex')
+}
+
 app.post('/api/auth/login', async (c) => {
   const secret = process.env.ADMIN_TOKEN
   if (!secret) return c.json({ message: 'Admin login is not configured. Set ADMIN_TOKEN first.' }, 503)
+  const clientKey = loginClientKey(c, secret)
+  const blockedFor = await getLoginBlock(clientKey)
+  if (blockedFor > 0) {
+    c.header('Retry-After', String(blockedFor))
+    return c.json({ message: 'Too many attempts; try again later' }, 429)
+  }
   const body = await c.req.json().catch(() => ({})) as { token?: string }
-  if (!secureEqual(body.token || '', secret)) return c.json({ message: 'Invalid admin token' }, 401)
+  if (typeof body.token !== 'string' || body.token.length > 512 || !secureEqual(body.token, secret)) {
+    const failure = await recordLoginFailure(clientKey)
+    if (failure.retryAfter > 0) {
+      c.header('Retry-After', String(failure.retryAfter))
+      return c.json({ message: 'Too many attempts; try again later' }, 429)
+    }
+    return c.json({ message: `Invalid admin token; ${failure.attemptsRemaining} attempts remaining` }, 401)
+  }
+  await clearLoginFailures(clientKey)
   setCookie(c, sessionCookie, sessionValue(), { httpOnly: true, sameSite: 'Lax', secure: process.env.NODE_ENV === 'production', path: '/', maxAge: sessionDays * 24 * 60 * 60 })
   return c.json({ authenticated: true })
 })
