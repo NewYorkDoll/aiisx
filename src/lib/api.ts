@@ -1,8 +1,13 @@
-import type { BlogPost, FitnessSnapshot, GameRecord, PostInput, SteamSnapshot, SyncRun, XboxSnapshot } from '../../shared/types'
+import type { BlogPost, FitnessSnapshot, GameRecord, MediaAsset, PostInput, SteamSnapshot, SyncRun, XboxSnapshot } from '../../shared/types'
 
 const API_URL = import.meta.env.VITE_API_URL || ''
 
 function adminHeaders(json = false): HeadersInit { return json ? { 'Content-Type': 'application/json' } : {} }
+
+async function responseError(response: Response, fallback: string) {
+  const body = await response.json().catch(() => ({})) as { message?: string }
+  return new Error(body.message || fallback)
+}
 
 export async function getAuthStatus() {
   const response = await fetch(`${API_URL}/api/auth/me`, { credentials: 'include' })
@@ -32,6 +37,45 @@ export async function getSyncRuns(limit = 12) {
   const response = await fetch(`${API_URL}/api/admin/sync-runs?limit=${limit}`, { credentials: 'include' })
   if (!response.ok) throw new Error('Unable to load sync history')
   return (await response.json() as { items: SyncRun[] }).items
+}
+
+export async function getMediaConfiguration() {
+  const response = await fetch(`${API_URL}/api/admin/media/config`, { credentials: 'include' })
+  if (!response.ok) throw await responseError(response, 'Unable to load media configuration')
+  return await response.json() as { configured: boolean; limits: { image: number; video: number }; types: string[] }
+}
+
+export async function prepareMediaUpload(file: File) {
+  const response = await fetch(`${API_URL}/api/admin/media/presign`, {
+    method: 'POST',
+    headers: adminHeaders(true),
+    credentials: 'include',
+    body: JSON.stringify({ filename: file.name, contentType: file.type, size: file.size }),
+  })
+  if (!response.ok) throw await responseError(response, 'Unable to prepare media upload')
+  return await response.json() as { asset: MediaAsset; uploadUrl: string; expiresIn: number }
+}
+
+export async function completeMediaUpload(id: string, metadata: { width?: number | null; height?: number | null; duration?: number | null; posterUrl?: string | null }) {
+  const response = await fetch(`${API_URL}/api/admin/media/${encodeURIComponent(id)}/complete`, {
+    method: 'POST',
+    headers: adminHeaders(true),
+    credentials: 'include',
+    body: JSON.stringify(metadata),
+  })
+  if (!response.ok) throw await responseError(response, 'Unable to verify media upload')
+  return await response.json() as MediaAsset
+}
+
+export async function getMediaAssets(limit = 60) {
+  const response = await fetch(`${API_URL}/api/admin/media?limit=${limit}`, { credentials: 'include' })
+  if (!response.ok) throw await responseError(response, 'Unable to load media')
+  return (await response.json() as { items: MediaAsset[] }).items
+}
+
+export async function deleteMedia(id: string) {
+  const response = await fetch(`${API_URL}/api/admin/media/${encodeURIComponent(id)}`, { method: 'DELETE', credentials: 'include' })
+  if (!response.ok) throw await responseError(response, 'Unable to delete media')
 }
 
 export async function getPost(slug: string) {

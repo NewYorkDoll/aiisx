@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams } from '@tanstack/react-router'
 import { Check, Cloud, HardDrive } from 'lucide-react'
 import { Prompt, PromptInput } from '../components/Prompt'
 import { ArticleContent } from '../components/ArticleContent'
+import { MediaUploader } from '../components/MediaUploader'
 import { createPost, getAuthStatus, getPost, updatePost } from '../lib/api'
 import { usePageMeta } from '../lib/meta'
 import type { PostInput } from '../../shared/types'
@@ -42,6 +43,7 @@ export default function Write() {
   const [autosave, setAutosave] = useState(initialDraft ? 'recovered from this browser' : 'waiting for input')
   const [serverStatus, setServerStatus] = useState<'draft' | 'published' | null>(null)
   const lastSavedFingerprint = useRef('')
+  const textarea = useRef<HTMLTextAreaElement>(null)
 
   const tags = useMemo(() => parseTags(tagsInput), [tagsInput])
   const input = useMemo<PostInput>(() => ({ title, content, mood, tags, status }), [content, mood, status, tags, title])
@@ -122,5 +124,18 @@ export default function Write() {
     }
   }
 
-  return <div className="route-stack"><Prompt command={slug ? `journal --edit ${slug}` : 'journal --write'}><div className="write-toolbar"><span>{slug ? 'editing existing note' : 'new journal entry'}</span><span className="autosave-status"><HardDrive size={12} /> {autosave}</span><Link to="/journal/manage">manage notes →</Link></div>{loading ? <p className="dim">loading note...</p> : <form className="write-form" onSubmit={submit}><label>title<input value={title} onChange={(event) => setTitle(event.target.value)} placeholder="A small thing worth keeping" required /></label><div className="write-meta-grid"><label>mood<input value={mood} onChange={(event) => setMood(event.target.value)} placeholder="curious" maxLength={32} /></label><label>tags<input value={tagsInput} onChange={(event) => setTagsInput(event.target.value)} placeholder="life, code, training" maxLength={160} /><small>{tags.length}/6 / comma separated</small></label></div><label>body<textarea value={content} onChange={(event) => setContent(event.target.value)} placeholder="今天发生了什么？" rows={12} required /></label><div className="write-actions"><button type="submit" disabled={saving}>{saving ? 'saving...' : status === 'draft' ? 'save draft' : 'publish note'}</button><button type="button" className="secondary-action" onClick={() => setStatus(status === 'draft' ? 'published' : 'draft')}>{status === 'draft' ? 'switch to publish' : 'switch to draft'}</button><span className="write-persistence">{serverStatus === 'draft' && status === 'draft' ? <><Cloud size={13} /> server autosave</> : <><Check size={13} /> browser recovery</>}</span></div>{message && <p className="form-message">{message}</p>}</form>}</Prompt><Prompt command="preview --plain"><div className="preview"><p className="kicker">{mood || 'mood'}{tags.length ? ` / ${tags.map((tag) => `#${tag}`).join(' ')}` : ''} / live preview</p><h2>{title || 'Untitled note'}</h2>{content ? <ArticleContent content={content} /> : <p className="dim">Your note will appear here.</p>}</div></Prompt><PromptInput /></div>
+  function insertMedia(snippet: string) {
+    const field = textarea.current
+    const start = field?.selectionStart ?? content.length
+    const end = field?.selectionEnd ?? start
+    const before = content.slice(0, start).replace(/\s*$/, '')
+    const after = content.slice(end).replace(/^\s*/, '')
+    const insertion = `${before ? '\n\n' : ''}${snippet}${after ? '\n\n' : ''}`
+    const next = `${before}${insertion}${after}`
+    const cursor = before.length + insertion.length
+    setContent(next)
+    requestAnimationFrame(() => { textarea.current?.focus(); textarea.current?.setSelectionRange(cursor, cursor) })
+  }
+
+  return <div className="route-stack"><Prompt command={slug ? `journal --edit ${slug}` : 'journal --write'}><div className="write-toolbar"><span>{slug ? 'editing existing note' : 'new journal entry'}</span><span className="autosave-status"><HardDrive size={12} /> {autosave}</span><Link to="/journal/manage">manage notes →</Link></div>{loading ? <p className="dim">loading note...</p> : <form className="write-form" onSubmit={submit}><label>title<input value={title} onChange={(event) => setTitle(event.target.value)} placeholder="A small thing worth keeping" required /></label><div className="write-meta-grid"><label>mood<input value={mood} onChange={(event) => setMood(event.target.value)} placeholder="curious" maxLength={32} /></label><label>tags<input value={tagsInput} onChange={(event) => setTagsInput(event.target.value)} placeholder="life, code, training" maxLength={160} /><small>{tags.length}/6 / comma separated</small></label></div><label>body<MediaUploader onInsert={insertMedia} /><textarea ref={textarea} value={content} onChange={(event) => setContent(event.target.value)} placeholder="今天发生了什么？" rows={12} required /></label><div className="write-actions"><button type="submit" disabled={saving}>{saving ? 'saving...' : status === 'draft' ? 'save draft' : 'publish note'}</button><button type="button" className="secondary-action" onClick={() => setStatus(status === 'draft' ? 'published' : 'draft')}>{status === 'draft' ? 'switch to publish' : 'switch to draft'}</button><span className="write-persistence">{serverStatus === 'draft' && status === 'draft' ? <><Cloud size={13} /> server autosave</> : <><Check size={13} /> browser recovery</>}</span></div>{message && <p className="form-message">{message}</p>}</form>}</Prompt><Prompt command="preview --plain"><div className="preview"><p className="kicker">{mood || 'mood'}{tags.length ? ` / ${tags.map((tag) => `#${tag}`).join(' ')}` : ''} / live preview</p><h2>{title || 'Untitled note'}</h2>{content ? <ArticleContent content={content} /> : <p className="dim">Your note will appear here.</p>}</div></Prompt><PromptInput /></div>
 }
