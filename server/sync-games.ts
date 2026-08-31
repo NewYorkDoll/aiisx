@@ -25,7 +25,9 @@ async function request(url: string, init?: RequestInit, onRetry?: (attempt: numb
     catch (error) { lastError = error; if (attempt < 2) { onRetry?.(attempt + 2); await new Promise((resolve) => setTimeout(resolve, 800 * (attempt + 1))) } }
   }
   const reason = lastError instanceof Error ? lastError.message : String(lastError)
-  throw new Error(`Nintendo 请求失败：${url} (${reason})。请检查 HTTPS_PROXY 或更换网络后重试。`, { cause: lastError })
+  const error = new Error(`Nintendo 请求失败：${url} (${reason})。请检查 HTTPS_PROXY 或更换网络后重试。`)
+  Object.assign(error, { cause: lastError })
+  throw error
 }
 
 async function getAccessToken(progress: Progress) {
