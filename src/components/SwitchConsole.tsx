@@ -18,13 +18,22 @@ export function SwitchConsole({ games, loading }: SwitchConsoleProps) {
     return () => window.clearTimeout(timer)
   }, [])
 
-  const move = (direction: number) => {
+  const selectGame = (index: number) => {
     if (!games.length) return
-    const next = (currentIndex + direction + games.length) % games.length
+    const next = (index + games.length) % games.length
     const rail = railRef.current
     const card = rail?.children.item(next) as HTMLElement | null
     rail?.scrollTo({ left: card?.offsetLeft || 0, behavior: 'smooth' })
     setActiveIndex(next)
+  }
+
+  const move = (direction: number) => selectGame(currentIndex + direction)
+
+  const syncSelectedGame = () => {
+    const rail = railRef.current
+    if (!rail?.children.length) return
+    const index = [...rail.children].reduce((closest, card, candidate) => Math.abs((card as HTMLElement).offsetLeft - rail.scrollLeft) < Math.abs((rail.children.item(closest) as HTMLElement).offsetLeft - rail.scrollLeft) ? candidate : closest, 0)
+    setActiveIndex((current) => current === index ? current : index)
   }
 
   const scrollGames = (event: WheelEvent<HTMLDivElement>) => {
@@ -51,8 +60,8 @@ export function SwitchConsole({ games, loading }: SwitchConsoleProps) {
 
             {booted && loading && <p className={styles.screenMessage}>querying save data...</p>}
             {booted && !loading && !games.length && <p className={styles.screenMessage}>no switch sync yet<br /><small>run npm run sync:platforms</small></p>}
-            {booted && !loading && games.length > 0 && <div className={styles.gameRail} ref={railRef} onWheel={scrollGames}>
-              {games.map((game, index) => <article className={styles.gameCard} key={game.id} aria-label={`${index + 1}. ${game.title}`}>
+            {booted && !loading && games.length > 0 && <div className={styles.gameRail} ref={railRef} onWheel={scrollGames} onScroll={syncSelectedGame} onKeyDown={(event) => { if (event.key === 'ArrowLeft') move(-1); if (event.key === 'ArrowRight') move(1) }}>
+              {games.map((game, index) => <button type="button" aria-pressed={index === currentIndex} className={`${styles.gameCard} ${index === currentIndex ? styles.selected : ''}`} key={game.id} aria-label={`${index + 1}. ${game.title}`} onClick={() => selectGame(index)}>
                 {game.cover ? <img draggable={false} src={game.cover} alt="" /> : <div className={styles.gameFallback}>N</div>}
                 <div className={styles.cardBody}>
                   <h3>{game.title}</h3>
@@ -61,7 +70,7 @@ export function SwitchConsole({ games, loading }: SwitchConsoleProps) {
                     <span><small>PLAY TIME</small><strong>{(game.minutes / 60).toFixed(1)} h</strong></span>
                   </div>
                 </div>
-              </article>)}
+              </button>)}
             </div>}
           </div>
         </div>
