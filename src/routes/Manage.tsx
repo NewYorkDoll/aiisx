@@ -116,6 +116,7 @@ export default function Manage() {
               <div className="manage-copy">
                 <h2>{post.title}</h2>
                 <p>{post.excerpt}</p>
+                {post.tags.length > 0 && <span>{post.tags.map((tag) => `#${tag}`).join('  ')}</span>}
               </div>
               <div className="manage-actions">
                 <Link to="/write/$slug" params={{ slug: post.slug }} aria-label={`编辑 ${post.title}`} title="编辑文章"><FilePenLine size={16} /></Link>
