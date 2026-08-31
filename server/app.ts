@@ -112,7 +112,7 @@ async function rssFeed(c: Context) {
       ${post.tags.map((tag) => `<category>${xml(tag)}</category>`).join('')}
     </item>`).join('')
   c.header('Content-Type', 'application/rss+xml; charset=utf-8')
-  c.header('Cache-Control', 'public, max-age=0, s-maxage=900')
+  c.header('Cache-Control', 'no-store')
   return c.body(`<?xml version="1.0" encoding="UTF-8" ?>
 <rss version="2.0"><channel>
   <title>aiisx / personal system</title>
@@ -128,7 +128,7 @@ async function sitemap(c: Context) {
   const routes = ['', '/game-are-life', '/fitness'].map((path) => `<url><loc>${baseUrl}${path}</loc></url>`)
   const articles = posts.map((post) => `<url><loc>${baseUrl}/journal/${encodeURIComponent(post.slug)}</loc><lastmod>${post.updatedAt}</lastmod></url>`)
   c.header('Content-Type', 'application/xml; charset=utf-8')
-  c.header('Cache-Control', 'public, max-age=0, s-maxage=900')
+  c.header('Cache-Control', 'no-store')
   return c.body(`<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">${[...routes, ...articles].join('')}</urlset>`)
 }
 
