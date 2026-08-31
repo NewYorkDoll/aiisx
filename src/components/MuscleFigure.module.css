@@ -1,0 +1,134 @@
+.figure {
+  border-left: 1px solid #30323a;
+  margin-top: 25px;
+  min-width: 0;
+  padding-left: 30px;
+}
+
+.figureHeader {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+}
+
+.figureHeader > span {
+  color: #777b86;
+  font: .63rem var(--mono);
+  letter-spacing: .07em;
+  text-transform: uppercase;
+}
+
+.controls { display: flex; gap: 5px; }
+
+.controls button {
+  align-items: center;
+  background: transparent;
+  border: 1px solid #343740;
+  color: #8f939d;
+  cursor: pointer;
+  display: flex;
+  height: 28px;
+  justify-content: center;
+  padding: 0;
+  width: 28px;
+}
+
+.controls button:hover,
+.controls button:focus-visible {
+  border-color: #5cc1d4;
+  color: #dce0e5;
+  outline: none;
+}
+
+.viewport {
+  cursor: grab;
+  height: 440px;
+  margin: 6px -8px 0;
+  position: relative;
+  touch-action: pan-y;
+}
+
+.viewport:active { cursor: grabbing; }
+.viewport canvas { display: block; }
+
+.axis {
+  bottom: 25px;
+  color: #565a64;
+  font: .52rem var(--mono);
+  left: 12px;
+  pointer-events: none;
+  position: absolute;
+  writing-mode: vertical-rl;
+}
+
+.axis::before {
+  background: #3c4048;
+  content: '';
+  display: block;
+  height: 48px;
+  margin: 0 auto 8px;
+  width: 1px;
+}
+
+.workoutMeta {
+  border-top: 1px solid #30323a;
+  display: grid;
+  gap: 5px;
+  padding-top: 14px;
+}
+
+.workoutMeta strong {
+  color: #f0efea;
+  font-size: .93rem;
+  font-weight: 400;
+}
+
+.workoutMeta > span {
+  color: #777b86;
+  font: .6rem var(--mono);
+}
+
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px 13px;
+  margin-top: 9px;
+}
+
+.legend span {
+  align-items: center;
+  color: #92959e;
+  display: inline-flex;
+  font: .57rem var(--mono);
+  gap: 6px;
+}
+
+.legend i {
+  background: var(--muscle-color);
+  display: block;
+  height: 6px;
+  width: 12px;
+}
+
+.empty {
+  color: #777b86;
+  font: .67rem/1.6 var(--mono);
+  margin: 0;
+}
+
+@media (max-width: 820px) {
+  .figure {
+    border-left: 0;
+    border-top: 1px solid #30323a;
+    margin-top: 35px;
+    padding-left: 0;
+    padding-top: 18px;
+  }
+
+  .viewport { height: 420px; margin-left: 0; margin-right: 0; }
+}
+
+@media (max-width: 480px) {
+  .viewport { height: 360px; }
+  .legend { column-gap: 10px; }
+}

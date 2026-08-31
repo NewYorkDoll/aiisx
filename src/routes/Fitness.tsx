@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { MuscleFigure } from '../components/MuscleFigure'
 import { Prompt, PromptInput } from '../components/Prompt'
 import { getFitness } from '../lib/api'
 import type { FitnessSnapshot } from '../../shared/types'
@@ -13,20 +14,25 @@ export default function Fitness() {
   return (
     <div className="route-stack">
       <Prompt command="training --status">
-        <div className="module-intro">
-          <p className="kicker">KEEPSTRONG / READ ONLY</p>
-          <h1>Strong body,<br /><em>clear mind.</em></h1>
-          <p className="lede">练练健身里的训练记录会在服务端聚合，只把适合公开展示的摘要带到这里。</p>
-        </div>
-        <div className="fitness-readout">
-          <div className="fitness-big"><span className="readout-label">sessions / 30d</span><strong>{data.sessions.toString().padStart(2, '0')}</strong></div>
-          <div><span className="readout-label">time under tension</span><strong>{data.minutes}<small> min</small></strong></div>
-          <div><span className="readout-label">recent actions</span><strong>{recentActions.length}</strong></div>
-        </div>
-        <div className="training-plan">
-          <span className="readout-label">active plan</span>
-          <strong>{data.planName || (ready ? 'No active plan' : 'waiting for api')}</strong>
-          <span className="plan-today">today / {data.todayName || '—'}</span>
+        <div className="fitness-overview">
+          <div className="fitness-copy">
+            <div className="module-intro">
+              <p className="kicker">KEEPSTRONG / READ ONLY</p>
+              <h1>Strong body,<br /><em>clear mind.</em></h1>
+              <p className="lede">练练健身里的训练记录会在服务端聚合，只把适合公开展示的摘要带到这里。</p>
+            </div>
+            <div className="fitness-readout">
+              <div className="fitness-big"><span className="readout-label">sessions / 30d</span><strong>{data.sessions.toString().padStart(2, '0')}</strong></div>
+              <div><span className="readout-label">time under tension</span><strong>{data.minutes}<small> min</small></strong></div>
+              <div><span className="readout-label">recent actions</span><strong>{recentActions.length}</strong></div>
+            </div>
+            <div className="training-plan">
+              <span className="readout-label">active plan</span>
+              <strong>{data.planName || (ready ? 'No active plan' : 'waiting for api')}</strong>
+              <span className="plan-today">today / {data.todayName || '—'}</span>
+            </div>
+          </div>
+          <MuscleFigure actions={data.recentActions || []} />
         </div>
       </Prompt>
       <Prompt command="training --recent --limit=10">

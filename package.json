@@ -19,6 +19,7 @@
   },
   "dependencies": {
     "@hono/node-server": "^2.1.1",
+    "@react-three/fiber": "^9.7.0",
     "@tanstack/react-router": "^1.170.32",
     "cheerio": "^1.2.0",
     "clsx": "^2.1.1",
@@ -29,6 +30,7 @@
     "mysql2": "^3.24.2",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
+    "three": "^0.185.1",
     "undici": "^7.29.0",
     "xal-node": "^1.1.5",
     "zod": "^4.4.3"
@@ -37,6 +39,7 @@
     "@types/node": "^24.13.3",
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.4",
+    "@types/three": "^0.185.4",
     "@vitejs/plugin-react": "^6.1.0",
     "concurrently": "^10.0.5",
     "oxlint": "^1.79.0",
