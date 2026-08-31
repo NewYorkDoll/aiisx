@@ -115,4 +115,13 @@ export const repository = {
     const result = await database.execute({ sql: 'DELETE FROM journal_posts WHERE slug = ?', args: [slug] })
     return result.rowsAffected > 0
   },
+
+  async countMediaReferences(url: string) {
+    await ensureDatabaseSchema()
+    const result = await database.execute({
+      sql: 'SELECT COUNT(*) AS count FROM journal_posts WHERE content LIKE ?',
+      args: [`%${url}%`],
+    })
+    return Number(result.rows[0]?.count || 0)
+  },
 }

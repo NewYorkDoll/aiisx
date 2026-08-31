@@ -149,6 +149,24 @@ const schema = [
     blocked_until TEXT,
     updated_at TEXT NOT NULL
   )`,
+  `CREATE TABLE IF NOT EXISTS media_assets (
+    id TEXT PRIMARY KEY,
+    object_key TEXT NOT NULL UNIQUE,
+    kind TEXT NOT NULL CHECK (kind IN ('image', 'video')),
+    content_type TEXT NOT NULL,
+    original_name TEXT NOT NULL,
+    size_bytes INTEGER NOT NULL,
+    public_url TEXT NOT NULL,
+    status TEXT NOT NULL CHECK (status IN ('pending', 'ready', 'failed', 'deleted')),
+    width INTEGER,
+    height INTEGER,
+    duration_seconds REAL,
+    poster_url TEXT,
+    created_at TEXT NOT NULL,
+    completed_at TEXT
+  )`,
+  `CREATE INDEX IF NOT EXISTS idx_media_assets_created_at
+    ON media_assets (created_at DESC)`,
 ]
 
 let schemaReady: Promise<void> | undefined

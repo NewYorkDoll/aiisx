@@ -117,3 +117,33 @@ export type SyncRun = {
   failed: number
   items: SyncRunItem[]
 }
+
+export const mediaUploadInputSchema = z.object({
+  filename: z.string().trim().min(1).max(180),
+  contentType: z.string().trim().min(1).max(80),
+  size: z.number().int().positive(),
+})
+
+export const mediaCompleteInputSchema = z.object({
+  width: z.number().int().positive().max(20_000).nullable().optional(),
+  height: z.number().int().positive().max(20_000).nullable().optional(),
+  duration: z.number().nonnegative().max(86_400).nullable().optional(),
+  posterUrl: z.string().url().max(2_000).nullable().optional(),
+})
+
+export type MediaAsset = {
+  id: string
+  key: string
+  kind: 'image' | 'video'
+  contentType: string
+  originalName: string
+  size: number
+  url: string
+  status: 'pending' | 'ready' | 'failed' | 'deleted'
+  width: number | null
+  height: number | null
+  duration: number | null
+  posterUrl: string | null
+  createdAt: string
+  completedAt: string | null
+}

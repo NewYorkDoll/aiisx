@@ -3,18 +3,19 @@ import { createHmac, timingSafeEqual } from 'node:crypto'
 import { Hono, type Context } from 'hono'
 import { cors } from 'hono/cors'
 import { deleteCookie, getCookie, setCookie } from 'hono/cookie'
-import { postInputSchema } from '../shared/types.js'
+import { mediaCompleteInputSchema, mediaUploadInputSchema, postInputSchema } from '../shared/types.js'
 import { listGames } from './db.js'
 import { getStoredFitnessSnapshot, getStoredSteamSnapshot, getStoredXboxSnapshot } from './platform-store.js'
 import { repository } from './repository.js'
 import { listSyncRuns } from './sync-run-store.js'
 import { clearLoginFailures, getLoginBlock, recordLoginFailure } from './login-rate-limit.js'
+import { completeMediaUpload, createMediaUpload, deleteMediaAsset, getMediaAsset, listMediaAssets, mediaConfiguration } from './media-store.js'
 
 const app = new Hono()
 app.use('/api/*', cors())
 app.use('*', async (c, next) => {
   await next()
-  c.header('Content-Security-Policy', "default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' https: data:; connect-src 'self'; font-src 'self' data:")
+  c.header('Content-Security-Policy', "default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; frame-src https://www.youtube.com https://player.bilibili.com; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' https: data: blob:; media-src 'self' https: blob:; connect-src 'self' https://*.r2.cloudflarestorage.com; font-src 'self' data:")
   c.header('Permissions-Policy', 'camera=(), microphone=(), geolocation=()')
   c.header('Referrer-Policy', 'strict-origin-when-cross-origin')
   c.header('X-Content-Type-Options', 'nosniff')
@@ -152,6 +153,57 @@ app.get('/api/admin/sync-runs', async (c) => {
   if (!isAdmin(c)) return c.json({ message: 'Unauthorized' }, 401)
   const requestedLimit = Number(c.req.query('limit') || 12)
   return c.json({ items: await listSyncRuns(Number.isFinite(requestedLimit) ? requestedLimit : 12) })
+})
+
+app.get('/api/admin/media/config', (c) => {
+  if (!isAdmin(c)) return c.json({ message: 'Unauthorized' }, 401)
+  return c.json(mediaConfiguration())
+})
+
+app.get('/api/admin/media', async (c) => {
+  if (!isAdmin(c)) return c.json({ message: 'Unauthorized' }, 401)
+  const requestedLimit = Number(c.req.query('limit') || 60)
+  return c.json({ items: await listMediaAssets(Number.isFinite(requestedLimit) ? requestedLimit : 60) })
+})
+
+app.post('/api/admin/media/presign', async (c) => {
+  if (!isAdmin(c)) return c.json({ message: 'Unauthorized' }, 401)
+  const parsed = mediaUploadInputSchema.safeParse(await c.req.json().catch(() => null))
+  if (!parsed.success) return c.json({ message: 'Invalid media upload', issues: parsed.error.flatten() }, 400)
+  try {
+    return c.json(await createMediaUpload(parsed.data), 201)
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Unable to prepare media upload'
+    return c.json({ message }, message === 'Media storage is not configured' ? 503 : 400)
+  }
+})
+
+app.post('/api/admin/media/:id/complete', async (c) => {
+  if (!isAdmin(c)) return c.json({ message: 'Unauthorized' }, 401)
+  const parsed = mediaCompleteInputSchema.safeParse(await c.req.json().catch(() => ({})))
+  if (!parsed.success) return c.json({ message: 'Invalid media metadata', issues: parsed.error.flatten() }, 400)
+  try {
+    const asset = await completeMediaUpload(c.req.param('id'), parsed.data)
+    return asset ? c.json(asset) : c.json({ message: 'Media not found' }, 404)
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Unable to verify media upload'
+    return c.json({ message }, message === 'Media storage is not configured' ? 503 : 502)
+  }
+})
+
+app.delete('/api/admin/media/:id', async (c) => {
+  if (!isAdmin(c)) return c.json({ message: 'Unauthorized' }, 401)
+  const asset = await getMediaAsset(c.req.param('id'))
+  if (!asset) return c.json({ message: 'Media not found' }, 404)
+  if (await repository.countMediaReferences(asset.url)) {
+    return c.json({ message: 'Media is still referenced by a journal post' }, 409)
+  }
+  try {
+    return await deleteMediaAsset(asset.id) ? c.json({ deleted: true }) : c.json({ message: 'Media not found' }, 404)
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Unable to delete media'
+    return c.json({ message }, message === 'Media storage is not configured' ? 503 : 502)
+  }
 })
 
 app.get('/api/posts', async (c) => {
