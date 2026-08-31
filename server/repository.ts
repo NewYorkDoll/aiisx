@@ -9,7 +9,7 @@ function mapPost(post: Row): BlogPost {
     slug: String(post.slug),
     title: String(post.title),
     content: String(post.content),
-    excerpt: String(post.excerpt),
+    excerpt: excerpt(String(post.content)),
     mood: String(post.mood),
     tags: parseTags(post.tags),
     status: String(post.status) as BlogPost['status'],
@@ -34,7 +34,14 @@ function slugify(title: string) {
 }
 
 function excerpt(content: string) {
-  return content.replace(/[#*_>`]/g, '').replace(/\s+/g, ' ').trim().slice(0, 140)
+  return content
+    .replace(/!\[[^\]]*]\([^)]*\)/g, ' ')
+    .replace(/^::(?:video|embed)\{.*}$/gm, ' ')
+    .replace(/\[([^\]]+)]\([^)]*\)/g, '$1')
+    .replace(/[#*_>`~]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, 140)
 }
 
 export const repository = {
