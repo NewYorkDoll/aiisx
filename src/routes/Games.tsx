@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Prompt, PromptInput } from '../components/Prompt'
+import { SwitchConsole } from '../components/SwitchConsole'
 import { getGames, getSteam, getXbox } from '../lib/api'
 import type { GameRecord, SteamSnapshot, XboxSnapshot } from '../../shared/types'
 
@@ -28,8 +29,7 @@ export default function Games() {
           <div className="steam-games">{xbox.games.length ? xbox.games.map((game) => <article className="steam-game" key={game.titleId}>{game.cover ? <img src={game.cover} alt="" /> : <div className="game-thumb" /> }<div><h3>{game.name}</h3><p>{game.minutes === null ? 'duration unavailable' : `${(game.minutes / 60).toFixed(1)} hours`} / {game.achievements} achievements / {game.gamerscore}G</p></div></article>) : <p className="dim">no Xbox title history</p>}</div>
         </>}
       </section>}
-      <div className="switch-heading"><p className="kicker">SWITCH / ARCHIVE</p></div>
-      <div className="game-list">{loading ? <p className="dim">querying save data...</p> : games.length ? games.map((game) => <article className="game-row" key={game.id}>{game.cover ? <img src={game.cover} alt="" /> : <div className="game-thumb">?</div>}<div><h2>{game.title}</h2><p>{(game.minutes / 60).toFixed(1)} hours / {new Intl.DateTimeFormat('zh-CN', { month: 'short', day: 'numeric' }).format(new Date(game.playedAt))}</p></div><span>↗</span></article>) : <p className="dim">no switch sync yet — run the TypeScript worker.</p>}</div>
+      <SwitchConsole games={games} loading={loading} />
     </Prompt>
     <PromptInput />
   </div>

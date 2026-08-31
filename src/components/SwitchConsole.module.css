@@ -1,0 +1,328 @@
+.archive {
+  margin-top: 42px;
+  max-width: 820px;
+}
+
+.heading {
+  align-items: flex-end;
+  border-top: 1px solid #30323a;
+  display: flex;
+  justify-content: space-between;
+  padding-top: 20px;
+}
+
+.heading h2 {
+  color: #f4f3ee;
+  font: 400 1.15rem var(--mono);
+  margin: 7px 0 0;
+}
+
+.heading > span {
+  color: #777b86;
+  font: .66rem var(--mono);
+}
+
+.console {
+  aspect-ratio: 2.42;
+  display: grid;
+  grid-template-columns: 13.5% minmax(0, 1fr) 13.5%;
+  margin-top: 24px;
+  width: 100%;
+}
+
+.body {
+  background: #37393d;
+  border-radius: 4px;
+  box-shadow: inset 0 -18px 18px -16px #090a0c, inset 0 3px 2px rgba(255,255,255,.12);
+  min-width: 0;
+  padding: 3.4% 2.5%;
+  position: relative;
+  z-index: 2;
+}
+
+.volume {
+  background: #55585d;
+  border-radius: 2px 2px 0 0;
+  height: 3px;
+  left: 14%;
+  position: absolute;
+  top: -3px;
+  width: 11%;
+}
+
+.screen {
+  background: #0e0f12;
+  border: clamp(7px, 1.45vw, 16px) solid #050506;
+  border-left-width: clamp(11px, 2.2vw, 24px);
+  border-radius: 7px;
+  border-right-width: clamp(11px, 2.2vw, 24px);
+  height: 100%;
+  overflow: hidden;
+  position: relative;
+}
+
+.game {
+  display: grid;
+  grid-template-columns: 47% minmax(0, 1fr);
+  height: calc(100% - 24px);
+}
+
+.gameImage,
+.gameFallback {
+  background: #1b1d22;
+  height: 100%;
+  min-width: 0;
+  object-fit: cover;
+  width: 100%;
+}
+
+.gameFallback {
+  align-items: center;
+  color: #f4f3ee;
+  display: flex;
+  font: 2rem var(--mono);
+  justify-content: center;
+}
+
+.gameCopy {
+  align-self: center;
+  min-width: 0;
+  padding: 8%;
+}
+
+.eyebrow {
+  color: #8ac56b;
+  font: .58rem var(--mono);
+}
+
+.gameCopy h3 {
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  color: #f4f3ee;
+  display: -webkit-box;
+  font-size: clamp(.82rem, 1.5vw, 1.18rem);
+  font-weight: 500;
+  line-height: 1.18;
+  margin: 8px 0 15px;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+}
+
+.gameCopy dl {
+  display: flex;
+  gap: 22px;
+  margin: 0;
+}
+
+.gameCopy dt {
+  color: #5f626b;
+  font: .5rem var(--mono);
+}
+
+.gameCopy dd {
+  color: #c6c8d0;
+  font: .64rem var(--mono);
+  margin: 4px 0 0;
+}
+
+.screenBar {
+  align-items: center;
+  background: #17191e;
+  bottom: 0;
+  color: #666a73;
+  display: flex;
+  font: .48rem var(--mono);
+  height: 24px;
+  justify-content: space-between;
+  left: 0;
+  padding: 0 10px;
+  position: absolute;
+  right: 0;
+}
+
+.screenBar span:last-child {
+  color: #8ac56b;
+}
+
+.screenMessage {
+  color: #8f929c;
+  font: .7rem/1.7 var(--mono);
+  left: 50%;
+  margin: 0;
+  position: absolute;
+  text-align: center;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 90%;
+}
+
+.screenMessage small {
+  color: #5f626b;
+}
+
+.joyCon {
+  box-shadow: inset 0 -14px 18px -15px rgba(0,0,0,.65), inset 0 3px 2px rgba(255,255,255,.22);
+  position: relative;
+  z-index: 1;
+}
+
+.leftJoy {
+  background: #31b9cf;
+  border-radius: 46% 5px 4px 46%;
+  box-shadow: inset 8px 0 10px -9px rgba(255,255,255,.7), inset -7px 0 5px -7px #071014, 4px 5px 0 -3px #121317;
+}
+
+.rightJoy {
+  background: #ed5c5a;
+  border-radius: 5px 46% 46% 4px;
+  box-shadow: inset -8px 0 10px -9px rgba(255,255,255,.7), inset 7px 0 5px -7px #160909, -4px 5px 0 -3px #121317;
+}
+
+.stick {
+  background: radial-gradient(circle, #292b2f 0 48%, #17181b 50% 66%, #55585d 68% 72%, #17181b 74%);
+  border-radius: 50%;
+  box-shadow: 0 3px 5px rgba(0,0,0,.45);
+  height: 21%;
+  left: 50%;
+  position: absolute;
+  transform: translateX(-50%);
+  width: 61%;
+}
+
+.leftStick { top: 18%; }
+.rightStick { top: 54%; }
+
+.buttonGroup {
+  height: 26%;
+  left: 50%;
+  position: absolute;
+  transform: translateX(-50%);
+  width: 72%;
+}
+
+.dpad { top: 51%; }
+.letters { top: 16%; }
+
+.roundButton {
+  align-items: center;
+  background: #303238;
+  border: 0;
+  border-radius: 50%;
+  box-shadow: inset 0 -2px 3px #111216, inset 0 2px 2px rgba(255,255,255,.18), 0 1px 3px rgba(0,0,0,.55);
+  color: rgba(255,255,255,.75);
+  display: flex;
+  height: 36%;
+  justify-content: center;
+  padding: 0;
+  position: absolute;
+  width: 36%;
+}
+
+button.roundButton {
+  cursor: pointer;
+  pointer-events: auto;
+}
+
+button.roundButton:active {
+  box-shadow: inset 0 2px 4px #0c0d0f;
+  transform: translateY(1px);
+}
+
+.roundButton svg {
+  height: 60%;
+  width: 60%;
+}
+
+.roundButton:nth-child(1) { left: 32%; top: 0; }
+.roundButton:nth-child(2) { left: 0; top: 32%; }
+.roundButton:nth-child(3) { bottom: 0; left: 32%; }
+.roundButton:nth-child(4) { right: 0; top: 32%; }
+
+.letters .roundButton::after {
+  content: attr(data-letter);
+  font: clamp(.4rem, .7vw, .62rem) var(--mono);
+}
+
+.minus,
+.plus {
+  background: #303238;
+  height: 2%;
+  position: absolute;
+  top: 9%;
+  width: 23%;
+}
+
+.minus { right: 10%; }
+.plus { left: 10%; }
+
+.plus::after {
+  background: #303238;
+  content: '';
+  height: 350%;
+  left: 40%;
+  position: absolute;
+  top: -125%;
+  width: 20%;
+}
+
+.capture,
+.home {
+  background: #303238;
+  bottom: 10%;
+  height: 10%;
+  position: absolute;
+  width: 28%;
+}
+
+.capture {
+  border-radius: 2px;
+  right: 18%;
+}
+
+.capture::after {
+  border: 2px solid #18191d;
+  border-radius: 50%;
+  content: '';
+  inset: 18%;
+  position: absolute;
+}
+
+.home {
+  border: 3px solid rgba(255,255,255,.22);
+  border-radius: 50%;
+  left: 18%;
+}
+
+.hint {
+  color: #666a73;
+  display: flex;
+  font: .59rem var(--mono);
+  gap: 9px;
+  margin: 13px 0 0;
+}
+
+.hint span:first-child { color: #31b9cf; }
+.hint span:last-child {
+  color: #8f929c;
+  margin-left: auto;
+  max-width: 50%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (max-width: 620px) {
+  .archive { margin-left: -6px; margin-right: -6px; }
+  .console { aspect-ratio: 2.18; }
+  .game { grid-template-columns: 44% minmax(0, 1fr); }
+  .gameCopy { padding: 7%; }
+  .gameCopy h3 { font-size: .7rem; margin: 5px 0 8px; }
+  .gameCopy dl { display: grid; gap: 5px; }
+  .gameCopy dl div:last-child { display: none; }
+  .eyebrow, .screenBar { font-size: .42rem; }
+  .screenBar { height: 18px; }
+  .game { height: calc(100% - 18px); }
+  .gameCopy dt { font-size: .4rem; }
+  .gameCopy dd { font-size: .54rem; margin-top: 2px; }
+  .hint span:last-child { max-width: 42%; }
+}
