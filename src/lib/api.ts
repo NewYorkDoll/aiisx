@@ -19,8 +19,11 @@ export async function logout() {
   await fetch(`${API_URL}/api/auth/logout`, { method: 'POST', credentials: 'include' })
 }
 
-export async function getPosts(status: 'published' | 'draft' | 'all' = 'published') {
-  const response = await fetch(`${API_URL}/api/posts?status=${status}`, { headers: adminHeaders(), credentials: 'include' })
+export async function getPosts(status: 'published' | 'draft' | 'all' = 'published', filters: { query?: string; tag?: string } = {}) {
+  const params = new URLSearchParams({ status })
+  if (filters.query) params.set('q', filters.query)
+  if (filters.tag) params.set('tag', filters.tag)
+  const response = await fetch(`${API_URL}/api/posts?${params}`, { headers: adminHeaders(), credentials: 'include' })
   if (!response.ok) throw new Error('Unable to load journal')
   return (await response.json() as { items: BlogPost[] }).items
 }

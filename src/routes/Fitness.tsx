@@ -1,12 +1,14 @@
 import { lazy, Suspense, useEffect, useState } from 'react'
 import { Prompt, PromptInput } from '../components/Prompt'
 import { getFitness } from '../lib/api'
+import { usePageMeta } from '../lib/meta'
 import type { FitnessSnapshot } from '../../shared/types'
 
 const empty: FitnessSnapshot = { weight: null, weightUnit: 'kg', sessions: 0, minutes: 0, planName: null, todayName: null, fetchedAt: '', recentActions: [] }
 const MuscleFigure = lazy(() => import('../components/MuscleFigure').then((module) => ({ default: module.MuscleFigure })))
 
 export default function Fitness() {
+  usePageMeta({ title: 'training', description: '最近完成的训练动作、训练计划与肌群视图。', path: '/fitness' })
   const [data, setData] = useState<FitnessSnapshot>(empty)
   const [ready, setReady] = useState(false)
   useEffect(() => { getFitness().then((snapshot) => { setData(snapshot); setReady(true) }).catch(() => undefined) }, [])

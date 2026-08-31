@@ -3,9 +3,11 @@ import { Prompt, PromptInput } from '../components/Prompt'
 import { SwitchConsole } from '../components/SwitchConsole'
 import { SteamActivity, XboxActivity } from '../components/PlatformActivity'
 import { getGames, getSteam, getXbox } from '../lib/api'
+import { usePageMeta } from '../lib/meta'
 import type { GameRecord, SteamSnapshot, XboxSnapshot } from '../../shared/types'
 
 export default function Games() {
+  usePageMeta({ title: 'game-are-life', description: 'Switch、Steam 与 Xbox 的最近游戏记录。', path: '/game-are-life' })
   const [games, setGames] = useState<GameRecord[]>([])
   const [loading, setLoading] = useState(true)
   const [steam, setSteam] = useState<SteamSnapshot | null>(null)
