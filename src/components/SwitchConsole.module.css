@@ -240,7 +240,7 @@
   border-radius: .22em .22em .12em .12em;
   display: block;
   height: 4.57em;
-  object-fit: cover;
+  object-fit: contain;
   width: 100%;
 }
 
