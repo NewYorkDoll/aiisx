@@ -15,10 +15,10 @@ export default function Games() {
   useEffect(() => { getXbox().then(setXbox).catch(() => undefined) }, [])
   return <div className="route-stack">
     <Prompt command="games --recent">
-      <div className="module-intro"><p className="kicker">ARCHIVE / STEAM + XBOX + SWITCH</p><h1>No Game<br /><em>No Life.</em></h1><p className="lede">最近打开的游戏，以及每次存档之后还想再玩一会儿的理由。</p></div>
+      <div className="module-intro"><p className="kicker">ARCHIVE / SWITCH + STEAM + XBOX</p><h1>No Game<br /><em>No Life.</em></h1><p className="lede">最近打开的游戏，以及每次存档之后还想再玩一会儿的理由。</p></div>
+      <SwitchConsole games={games} loading={loading} />
       {steam && <SteamActivity data={steam} />}
       {xbox && <XboxActivity data={xbox} />}
-      <SwitchConsole games={games} loading={loading} />
     </Prompt>
     <PromptInput />
   </div>
