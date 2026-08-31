@@ -115,6 +115,32 @@ const schema = [
   )`,
   `CREATE INDEX IF NOT EXISTS idx_fitness_action_date_sequence
     ON fitness_recent_action (session_date DESC, action_sequence DESC)`,
+  `CREATE TABLE IF NOT EXISTS sync_runs (
+    id TEXT PRIMARY KEY,
+    trigger TEXT NOT NULL CHECK (trigger IN ('manual', 'cron', 'schedule')),
+    slot TEXT,
+    status TEXT NOT NULL CHECK (status IN ('running', 'success', 'partial', 'failed')),
+    started_at TEXT NOT NULL,
+    completed_at TEXT,
+    duration_ms INTEGER,
+    succeeded_count INTEGER NOT NULL DEFAULT 0,
+    failed_count INTEGER NOT NULL DEFAULT 0
+  )`,
+  `CREATE INDEX IF NOT EXISTS idx_sync_runs_started_at
+    ON sync_runs (started_at DESC)`,
+  `CREATE TABLE IF NOT EXISTS sync_run_items (
+    id TEXT PRIMARY KEY,
+    run_id TEXT NOT NULL,
+    platform TEXT NOT NULL,
+    status TEXT NOT NULL CHECK (status IN ('running', 'success', 'failed', 'skipped')),
+    started_at TEXT NOT NULL,
+    completed_at TEXT,
+    duration_ms INTEGER,
+    message TEXT,
+    FOREIGN KEY (run_id) REFERENCES sync_runs(id) ON DELETE CASCADE
+  )`,
+  `CREATE INDEX IF NOT EXISTS idx_sync_run_items_run
+    ON sync_run_items (run_id, started_at)`,
 ]
 
 let schemaReady: Promise<void> | undefined

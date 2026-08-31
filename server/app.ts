@@ -7,6 +7,7 @@ import { postInputSchema } from '../shared/types.js'
 import { listGames } from './db.js'
 import { getStoredFitnessSnapshot, getStoredSteamSnapshot, getStoredXboxSnapshot } from './platform-store.js'
 import { repository } from './repository.js'
+import { listSyncRuns } from './sync-run-store.js'
 
 const app = new Hono()
 app.use('/api/*', cors())
@@ -67,9 +68,15 @@ app.get('/api/cron/:slot', async (c) => {
   const slot = c.req.param('slot')
   if (slot !== 'noon' && slot !== 'evening') return c.json({ message: 'Cron slot not found' }, 404)
     const { syncPlatforms } = await import('./sync-platforms.js')
-  const result = await syncPlatforms()
+  const result = await syncPlatforms({ trigger: 'cron', slot })
   const body = { slot, completedAt: new Date().toISOString(), ...result }
   return result.failed ? c.json(body, 502) : c.json(body)
+})
+
+app.get('/api/admin/sync-runs', async (c) => {
+  if (!isAdmin(c)) return c.json({ message: 'Unauthorized' }, 401)
+  const requestedLimit = Number(c.req.query('limit') || 12)
+  return c.json({ items: await listSyncRuns(Number.isFinite(requestedLimit) ? requestedLimit : 12) })
 })
 
 app.get('/api/posts', async (c) => {

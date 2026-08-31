@@ -92,3 +92,26 @@ export type FitnessActionSummary = {
   sets: number
   sequence: number
 }
+
+export type SyncRunItem = {
+  id: string
+  platform: string
+  status: 'running' | 'success' | 'failed' | 'skipped'
+  startedAt: string
+  completedAt: string | null
+  durationMs: number | null
+  message: string | null
+}
+
+export type SyncRun = {
+  id: string
+  trigger: 'manual' | 'cron' | 'schedule'
+  slot: string | null
+  status: 'running' | 'success' | 'partial' | 'failed'
+  startedAt: string
+  completedAt: string | null
+  durationMs: number | null
+  succeeded: number
+  failed: number
+  items: SyncRunItem[]
+}
