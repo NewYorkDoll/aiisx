@@ -1,17 +1,16 @@
 import 'dotenv/config'
-import { Msal, TokenStore } from 'xal-node'
-
-const tokenFile = process.env.XBOX_TOKEN_FILE || '.xbox.tokens.json'
+import { Msal } from 'xal-node'
+import { loadXboxTokenStore, saveXboxTokenStore } from './xbox-token-store'
 
 async function authenticate() {
-  const store = new TokenStore()
-  store.load(tokenFile, true)
+  const store = await loadXboxTokenStore()
   const msal = new Msal(store)
 
   if (store.getUserToken()) {
     try {
       await msal.getWebToken()
-      console.log(`Xbox token already available: ${tokenFile}`)
+      await saveXboxTokenStore(store)
+      console.log('Xbox credentials are valid and stored in SQLite.')
       return
     } catch {
       console.log('Existing Xbox token could not be refreshed; starting a new login.')
@@ -22,7 +21,8 @@ async function authenticate() {
   console.log(device.message)
   await msal.doPollForDeviceCodeAuth(device.device_code, device.expires_in * 1000)
   await msal.getWebToken()
-  console.log(`Xbox authentication succeeded. Token saved to ${tokenFile}`)
+  await saveXboxTokenStore(store)
+  console.log('Xbox authentication succeeded. Credentials saved to SQLite.')
 }
 
 authenticate().catch((error) => {

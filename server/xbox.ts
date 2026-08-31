@@ -1,5 +1,6 @@
-import { Msal, TokenStore } from 'xal-node'
+import { Msal } from 'xal-node'
 import type { XboxGame, XboxSnapshot } from '../shared/types'
+import { loadXboxTokenStore, saveXboxTokenStore } from './xbox-token-store'
 
 type WebToken = { data: { Token: string; DisplayClaims: { xui: Array<{ uhs: string }> } } }
 type Profile = { id: string; settings?: Array<{ id: string; value: string }> }
@@ -48,19 +49,19 @@ function setting(profile: Profile, id: string) {
 }
 
 export async function fetchXboxSnapshot(): Promise<XboxSnapshot> {
-  const tokenFile = process.env.XBOX_TOKEN_FILE || '.xbox.tokens.json'
   const fetchedAt = new Date().toISOString()
-  const store = new TokenStore()
-  if (!store.load(tokenFile, true) || !store.getUserToken()) {
+  const store = await loadXboxTokenStore()
+  if (!store.getUserToken()) {
     return { configured: false, profile: null, state: 'Unknown', currentGame: null, games: [], fetchedAt, message: 'run npm run auth:xbox to connect Xbox' }
   }
 
-  const cached = cache.get(tokenFile)
+  const cached = cache.get('xbox')
   if (cached && cached.expiresAt > Date.now()) return cached.value
 
   try {
     const msal = new Msal(store)
     const token = await msal.getWebToken() as unknown as WebToken
+    await saveXboxTokenStore(store)
     const profileResponse = await xboxFetch<ProfileResponse>('profile.xboxlive.com/users/me/profile/settings?settings=GameDisplayName,GameDisplayPicRaw,Gamerscore,Gamertag', token)
     const profile = profileResponse.profileUsers?.[0]
     if (!profile) throw new Error('Xbox profile not found')
@@ -81,7 +82,7 @@ export async function fetchXboxSnapshot(): Promise<XboxSnapshot> {
       games,
       fetchedAt,
     }
-    cache.set(tokenFile, { expiresAt: Date.now() + cacheTtl, value })
+    cache.set('xbox', { expiresAt: Date.now() + cacheTtl, value })
     return value
   } catch (error) {
     return { configured: true, profile: null, state: 'Unknown', currentGame: null, games: [], fetchedAt, message: error instanceof Error ? error.message : 'Xbox API unavailable' }
