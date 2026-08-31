@@ -16,13 +16,11 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version: 24
           cache: npm
       - run: npm ci
       - name: Verify production endpoints
-        run: npm run verify:production -- "$TARGET_URL"
-        env:
-          TARGET_URL: ${{ github.event_name == 'deployment_status' && github.event.deployment_status.target_url || 'https://aiisx.com' }}
+        run: npm run verify:production -- https://aiisx.com
