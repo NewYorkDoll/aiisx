@@ -1,0 +1,7 @@
+User-agent: *
+Allow: /
+Disallow: /journal/manage
+Disallow: /write
+Disallow: /login
+
+Sitemap: https://aiisx.com/sitemap.xml

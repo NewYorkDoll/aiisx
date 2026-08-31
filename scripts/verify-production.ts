@@ -29,6 +29,14 @@ const checks: Check[] = [
     path: '/login',
     validate: (response, body) => response.ok && typeof body === 'string' && body.includes('<div id="root">'),
   },
+  {
+    path: '/rss.xml',
+    validate: (response, body) => response.ok && typeof body === 'string' && body.includes('<rss version="2.0">'),
+  },
+  {
+    path: '/sitemap.xml',
+    validate: (response, body) => response.ok && typeof body === 'string' && body.includes('<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">'),
+  },
 ]
 
 const baseUrl = new URL(process.argv[2] ?? process.env.PRODUCTION_URL ?? 'https://aiisx.com')
