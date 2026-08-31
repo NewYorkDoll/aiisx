@@ -39,6 +39,11 @@ function isAdmin(c: Context) {
   return secureEqual(signature, expected)
 }
 
+function isCronAuthorized(c: Context) {
+  const secret = process.env.CRON_SECRET
+  return Boolean(secret) && secureEqual(c.req.header('authorization') || '', `Bearer ${secret}`)
+}
+
 app.post('/api/auth/login', async (c) => {
   const secret = process.env.ADMIN_TOKEN
   if (!secret) return c.json({ message: 'Admin login is not configured. Set ADMIN_TOKEN first.' }, 503)
@@ -55,6 +60,17 @@ app.get('/api/games', async (c) => c.json({ items: await listGames().catch(() =>
 app.get('/api/fitness', async (c) => c.json(await getStoredFitnessSnapshot().catch(() => null) || { weight: null, weightUnit: 'kg', sessions: 0, minutes: 0, planName: null, todayName: null, fetchedAt: new Date().toISOString(), recentActions: [], message: 'no fitness sync yet - run npm run sync:platforms' }))
 app.get('/api/steam', async (c) => c.json(await getStoredSteamSnapshot().catch(() => null) || { configured: Boolean(process.env.STEAM_API_KEY && process.env.STEAM_ID), profile: null, playTimeMinutes: 0, games: [], fetchedAt: new Date().toISOString(), message: 'no Steam sync yet - run npm run sync:platforms' }))
 app.get('/api/xbox', async (c) => c.json(await getStoredXboxSnapshot().catch(() => null) || { configured: false, profile: null, state: 'Unknown', currentGame: null, games: [], fetchedAt: new Date().toISOString(), message: 'no Xbox sync yet - run npm run sync:platforms' }))
+
+app.get('/api/cron/:slot', async (c) => {
+  if (!process.env.CRON_SECRET) return c.json({ message: 'Cron is not configured' }, 503)
+  if (!isCronAuthorized(c)) return c.json({ message: 'Unauthorized' }, 401)
+  const slot = c.req.param('slot')
+  if (slot !== 'noon' && slot !== 'evening') return c.json({ message: 'Cron slot not found' }, 404)
+  const { syncPlatforms } = await import('./sync-platforms')
+  const result = await syncPlatforms()
+  const body = { slot, completedAt: new Date().toISOString(), ...result }
+  return result.failed ? c.json(body, 502) : c.json(body)
+})
 
 app.get('/api/posts', async (c) => {
   const rawStatus = c.req.query('status') || 'published'

@@ -1,4 +1,6 @@
 import 'dotenv/config'
+import { resolve } from 'node:path'
+import { pathToFileURL } from 'node:url'
 import { fetchFitnessSnapshot } from './keepstrong'
 import { fetchSteamSnapshot } from './steam'
 import { fetchXboxSnapshot } from './xbox'
@@ -6,7 +8,7 @@ import { closePlatformStore, saveFitnessSnapshot, saveSteamSnapshot, saveXboxSna
 import { syncGames } from './sync-games'
 import { databaseLocation } from './database'
 
-type SyncResult = { platform: string; ok: boolean }
+export type SyncResult = { platform: string; ok: boolean; message?: string }
 
 function timestamp() {
   return new Intl.DateTimeFormat('zh-CN', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }).format(new Date())
@@ -32,8 +34,9 @@ async function syncSteam(): Promise<SyncResult> {
     log('Steam', `done: ${snapshot.games.length} games (${elapsed(startedAt)})`)
     return { platform: 'Steam', ok: true }
   } catch (error) {
-    log('Steam', `failed after ${elapsed(startedAt)}: ${error instanceof Error ? error.message : error}`)
-    return { platform: 'Steam', ok: false }
+    const message = error instanceof Error ? error.message : String(error)
+    log('Steam', `failed after ${elapsed(startedAt)}: ${message}`)
+    return { platform: 'Steam', ok: false, message }
   }
 }
 
@@ -48,8 +51,9 @@ async function syncXbox(): Promise<SyncResult> {
     log('Xbox', `done: ${snapshot.games.length} games (${elapsed(startedAt)})`)
     return { platform: 'Xbox', ok: true }
   } catch (error) {
-    log('Xbox', `failed after ${elapsed(startedAt)}: ${error instanceof Error ? error.message : error}`)
-    return { platform: 'Xbox', ok: false }
+    const message = error instanceof Error ? error.message : String(error)
+    log('Xbox', `failed after ${elapsed(startedAt)}: ${message}`)
+    return { platform: 'Xbox', ok: false, message }
   }
 }
 
@@ -63,8 +67,9 @@ async function syncFitness(): Promise<SyncResult> {
     log('Fitness', `done: ${snapshot.sessions} sessions (${elapsed(startedAt)})`)
     return { platform: 'Fitness', ok: true }
   } catch (error) {
-    log('Fitness', `failed after ${elapsed(startedAt)}: ${error instanceof Error ? error.message : error}`)
-    return { platform: 'Fitness', ok: false }
+    const message = error instanceof Error ? error.message : String(error)
+    log('Fitness', `failed after ${elapsed(startedAt)}: ${message}`)
+    return { platform: 'Fitness', ok: false, message }
   }
 }
 
@@ -75,12 +80,13 @@ async function syncSwitch(): Promise<SyncResult> {
     log('Switch', `done: ${result.inserted} new records from ${result.histories} games (${elapsed(startedAt)})`)
     return { platform: 'Switch', ok: true }
   } catch (error) {
-    log('Switch', `failed after ${elapsed(startedAt)}: ${error instanceof Error ? error.message : error}`)
-    return { platform: 'Switch', ok: false }
+    const message = error instanceof Error ? error.message : String(error)
+    log('Switch', `failed after ${elapsed(startedAt)}: ${message}`)
+    return { platform: 'Switch', ok: false, message }
   }
 }
 
-async function syncPlatforms() {
+export async function syncPlatforms() {
   const startedAt = performance.now()
   log('Database', `using ${databaseLocation}`)
   const tasks: Array<Promise<SyncResult>> = []
@@ -100,7 +106,7 @@ async function syncPlatforms() {
   log('Sync', `started ${tasks.length} platform tasks in parallel`)
   const results = await Promise.all(tasks)
   const succeeded = results.filter((result) => result.ok).length
-  return { succeeded, failed: results.length - succeeded, duration: elapsed(startedAt) }
+  return { succeeded, failed: results.length - succeeded, duration: elapsed(startedAt), results }
 }
 
 function nextScheduledRun() {
@@ -123,17 +129,21 @@ async function schedule() {
   setTimeout(async () => { const result = await syncPlatforms(); log('Sync', `scheduled run finished: ${result.succeeded} succeeded, ${result.failed} failed (${result.duration})`); await schedule() }, Math.max(1_000, next.getTime() - Date.now()))
 }
 
-if (process.argv.includes('--schedule')) {
-  schedule().catch((error) => { console.error(error); process.exitCode = 1 })
-} else {
-  const startedAt = performance.now()
-  syncPlatforms().then(async (result) => {
-    log('Database', 'closing connection pool...')
-    await closePlatformStore()
-    log('Sync', `complete: ${result.succeeded} succeeded, ${result.failed} failed (${elapsed(startedAt)})`)
-  }).catch(async (error) => {
-    console.error(error)
-    await closePlatformStore().catch(() => undefined)
-    process.exitCode = 1
-  })
+const isDirectRun = Boolean(process.argv[1]) && import.meta.url === pathToFileURL(resolve(process.argv[1])).href
+
+if (isDirectRun) {
+  if (process.argv.includes('--schedule')) {
+    schedule().catch((error) => { console.error(error); process.exitCode = 1 })
+  } else {
+    const startedAt = performance.now()
+    syncPlatforms().then(async (result) => {
+      log('Database', 'closing connection...')
+      await closePlatformStore()
+      log('Sync', `complete: ${result.succeeded} succeeded, ${result.failed} failed (${elapsed(startedAt)})`)
+    }).catch(async (error) => {
+      console.error(error)
+      await closePlatformStore().catch(() => undefined)
+      process.exitCode = 1
+    })
+  }
 }
