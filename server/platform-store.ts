@@ -21,12 +21,12 @@ export async function saveSteamSnapshot(snapshot: SteamSnapshot) {
       args: [profile.name, profile.avatar, profile.state, profile.profileUrl, snapshot.playTimeMinutes, snapshot.fetchedAt],
     },
     ...snapshot.games.map((game) => ({
-      sql: `INSERT INTO steam_game_activity (app_id, name, minutes, cover, synced_at)
-        VALUES (?, ?, ?, ?, ?)
+      sql: `INSERT INTO steam_game_activity (app_id, name, minutes, cover, played_at, synced_at)
+        VALUES (?, ?, ?, ?, ?, ?)
         ON CONFLICT(app_id) DO UPDATE SET
           name = excluded.name, minutes = excluded.minutes, cover = excluded.cover,
-          synced_at = excluded.synced_at`,
-      args: [game.appId, game.name, game.minutes, game.cover, snapshot.fetchedAt],
+          played_at = excluded.played_at, synced_at = excluded.synced_at`,
+      args: [game.appId, game.name, game.minutes, game.cover, game.playedAt, snapshot.fetchedAt],
     })),
   ], 'write')
 }
@@ -36,7 +36,7 @@ export async function getStoredSteamSnapshot() {
   const profileResult = await database.execute('SELECT name, avatar, state, profile_url, play_time_minutes, fetched_at FROM steam_profile_snapshot WHERE id = 1 LIMIT 1')
   const profile = profileResult.rows[0]
   if (!profile) return null
-  const games = await database.execute('SELECT app_id, name, minutes, cover FROM steam_game_activity ORDER BY minutes DESC, synced_at DESC LIMIT 5')
+  const games = await database.execute('SELECT app_id, name, minutes, cover, played_at FROM steam_game_activity ORDER BY played_at DESC, minutes DESC, synced_at DESC LIMIT 5')
   return {
     configured: true,
     profile: {
@@ -46,7 +46,7 @@ export async function getStoredSteamSnapshot() {
       profileUrl: String(profile.profile_url),
     },
     playTimeMinutes: Number(profile.play_time_minutes),
-    games: games.rows.map((game) => ({ appId: Number(game.app_id), name: String(game.name), minutes: Number(game.minutes), cover: String(game.cover) })),
+    games: games.rows.map((game) => ({ appId: Number(game.app_id), name: String(game.name), minutes: Number(game.minutes), cover: String(game.cover), playedAt: game.played_at === null ? null : String(game.played_at) })),
     fetchedAt: String(profile.fetched_at),
   } satisfies SteamSnapshot
 }

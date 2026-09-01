@@ -67,6 +67,7 @@ const schema = [
     name TEXT NOT NULL,
     minutes INTEGER NOT NULL,
     cover TEXT NOT NULL,
+    played_at TEXT,
     synced_at TEXT NOT NULL
   )`,
   `CREATE TABLE IF NOT EXISTS xbox_profile_snapshot (
@@ -176,6 +177,10 @@ async function initializeDatabaseSchema() {
   const columns = await database.execute('PRAGMA table_info(journal_posts)')
   if (!columns.rows.some((column) => String(column.name) === 'tags')) {
     await database.execute("ALTER TABLE journal_posts ADD COLUMN tags TEXT NOT NULL DEFAULT '[]'")
+  }
+  const steamColumns = await database.execute('PRAGMA table_info(steam_game_activity)')
+  if (!steamColumns.rows.some((column) => String(column.name) === 'played_at')) {
+    await database.execute('ALTER TABLE steam_game_activity ADD COLUMN played_at TEXT')
   }
 }
 

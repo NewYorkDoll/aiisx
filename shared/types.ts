@@ -33,6 +33,7 @@ export type SteamGame = {
   name: string
   minutes: number
   cover: string
+  playedAt: string | null
 }
 
 export type SteamSnapshot = {
