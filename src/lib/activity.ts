@@ -11,6 +11,35 @@ export type ActivityItem = {
   slug?: string
 }
 
+const activityDayFormatter = new Intl.DateTimeFormat('en', {
+  day: '2-digit',
+  month: '2-digit',
+  timeZone: 'Asia/Shanghai',
+  year: 'numeric',
+})
+
+const sourcePriority: Record<ActivitySource, number> = {
+  journal: 3,
+  training: 2,
+  steam: 1,
+  switch: 1,
+  xbox: 1,
+}
+
+function activityDay(value: string) {
+  const parts = Object.fromEntries(activityDayFormatter.formatToParts(new Date(value)).map((part) => [part.type, part.value]))
+  return `${parts.year}-${parts.month}-${parts.day}`
+}
+
+function compareActivity(left: ActivityItem, right: ActivityItem) {
+  const day = activityDay(right.occurredAt).localeCompare(activityDay(left.occurredAt))
+  if (day) return day
+  const priority = sourcePriority[right.source] - sourcePriority[left.source]
+  if (priority) return priority
+  const timestamp = new Date(right.occurredAt).getTime() - new Date(left.occurredAt).getTime()
+  return timestamp || left.id.localeCompare(right.id)
+}
+
 function trainingDate(value: string) {
   const compact = value.match(/^(\d{4})(\d{2})(\d{2})$/)
   if (compact) return new Date(`${compact[1]}-${compact[2]}-${compact[3]}T12:00:00+08:00`).toISOString()
@@ -55,9 +84,11 @@ export function buildActivityFeed(input: {
     const playtime = game.minutes === null ? 'time unavailable' : hours(game.minutes)
     items.push({ id: `xbox:${game.titleId}`, source: 'xbox', title: game.name, detail: `${playtime} / ${game.achievements} achievements`, occurredAt: game.playedAt })
   }
-  const steamGame = input.steam?.games.find((game) => game.minutes > 0)
-  if (steamGame && input.steam) {
-    items.push({ id: `steam:${steamGame.appId}`, source: 'steam', title: steamGame.name, detail: `recent 2 weeks / ${hours(steamGame.minutes)}`, occurredAt: input.steam.fetchedAt })
+  const steamGame = input.steam?.games
+    .filter((game) => game.minutes > 0 && game.playedAt)
+    .sort((left, right) => new Date(right.playedAt!).getTime() - new Date(left.playedAt!).getTime())[0]
+  if (steamGame?.playedAt) {
+    items.push({ id: `steam:${steamGame.appId}`, source: 'steam', title: steamGame.name, detail: `recent 2 weeks / ${hours(steamGame.minutes)}`, occurredAt: steamGame.playedAt })
   }
   for (const session of groupTraining(input.fitness?.recentActions || []).slice(0, 3)) {
     items.push({ id: `training:${session.date}:${session.plan}`, source: 'training', title: session.plan, detail: `${session.actions} actions / ${session.sets} sets`, occurredAt: trainingDate(session.date) })
@@ -65,6 +96,6 @@ export function buildActivityFeed(input: {
 
   return items
     .filter((item) => !Number.isNaN(new Date(item.occurredAt).getTime()))
-    .sort((left, right) => new Date(right.occurredAt).getTime() - new Date(left.occurredAt).getTime())
+    .sort(compareActivity)
     .slice(0, 10)
 }
