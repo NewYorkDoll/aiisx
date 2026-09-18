@@ -38,9 +38,11 @@ async function getAccessToken(progress: Progress) {
 }
 
 async function getHistory(token: AccessToken, progress: Progress) {
-  const response = await request(playHistoryUrl, { headers: { Authorization: `${token.token_type} ${token.access_token}`, 'User-Agent': userAgent, 'gentry-locale': 'zh-CN' } }, (attempt) => progress(`play history request failed; retrying ${attempt}/3...`))
+  const response = await request(playHistoryUrl, { headers: { Authorization: `${token.token_type} ${token.access_token}`, 'User-Agent': userAgent, 'gentry-locale': 'en-US' } }, (attempt) => progress(`play history request failed; retrying ${attempt}/3...`))
   if (!response.ok) throw new Error(`Nintendo history request failed: ${response.status}`)
-  return (await response.json() as { playHistories?: PlayHistory[] }).playHistories || []
+  const data = await response.json() as { playHistories?: PlayHistory[] }
+  if (!Array.isArray(data.playHistories)) throw new Error('Nintendo history response is missing playHistories')
+  return data.playHistories
 }
 
 async function getChineseInfo(titleId: string, fallbackName: string, fallbackCover: string | undefined) {
@@ -54,8 +56,6 @@ async function getChineseInfo(titleId: string, fallbackName: string, fallbackCov
   }
 }
 
-function parseDate(value: string) { return new Date(value.replace(/([+-]\d\d):?\d\d$/, '$1:00')) }
-
 export async function syncGames(progress: Progress = () => undefined) {
   await ensureSwitchSchema()
   progress('requesting Nintendo access token...')
@@ -63,19 +63,22 @@ export async function syncGames(progress: Progress = () => undefined) {
   progress('access token received; requesting play history...')
   const histories = await getHistory(token, progress)
   progress(`received ${histories.length} play history records; checking database...`)
-  const rawRows = await database.execute('SELECT title_id, SUM(play_time) AS total_play_time, MAX(last_played_at) AS last_played_at FROM dwd_switch_game_played_record GROUP BY title_id')
+  const rawRows = await database.execute('SELECT title_id, zh_name, zh_cover, SUM(play_time) AS total_play_time, MAX(last_played_at) AS last_played_at FROM dwd_switch_game_played_record GROUP BY title_id')
   const previous = new Map(rawRows.rows.map((row) => [String(row.title_id), {
     totalPlayTime: Number(row.total_play_time),
     lastPlayedAt: new Date(String(row.last_played_at)),
+    name: row.zh_name ? String(row.zh_name) : null,
+    cover: row.zh_cover ? String(row.zh_cover) : null,
   }]))
   let inserted = 0
   for (const [index, game] of histories.entries()) {
-    const playedAt = parseDate(game.lastPlayedAt)
+    const playedAt = new Date(game.lastPlayedAt)
+    if (!game.titleId || !Number.isFinite(playedAt.getTime()) || !Number.isFinite(game.totalPlayedMinutes) || game.totalPlayedMinutes < 0) throw new Error('Nintendo returned an invalid play history record')
     const old = previous.get(game.titleId)
-    if (old && old.lastPlayedAt.getTime() === playedAt.getTime()) continue
     const delta = Math.max(0, game.totalPlayedMinutes - (old?.totalPlayTime || 0))
+    if (old && old.lastPlayedAt.getTime() >= playedAt.getTime() && delta === 0) continue
     progress(`processing ${index + 1}/${histories.length}: ${game.titleName}`)
-    const info = await getChineseInfo(game.titleId, game.titleName, game.imageUrl)
+    const info = old?.name ? { name: old.name, cover: old.cover || game.imageUrl || null } : await getChineseInfo(game.titleId, game.titleName, game.imageUrl)
     const timestamp = new Date().toISOString()
     await database.execute({
       sql: `INSERT INTO dwd_switch_game_played_record
