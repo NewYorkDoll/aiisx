@@ -74,9 +74,11 @@ export async function fetchXboxSnapshot(): Promise<XboxSnapshot> {
       xboxFetch<TitleHistoryResponse>(`titlehub.xboxlive.com/users/xuid(${profile.id})/titles/titlehistory/decoration/achievement,image,scid`, token, 2),
     ])
     if (!Array.isArray(titleHistory.titles)) throw new Error('Xbox title history response is missing titles')
-    const games: XboxGame[] = await Promise.all(titleHistory.titles.filter(isConsoleTitle).map(async (title, index) => {
+    const consoleIds = new Set(titleHistory.titles.filter(isConsoleTitle).map((title) => title.titleId))
+    const timedIds = new Set([...consoleIds].slice(0, 5))
+    const games: XboxGame[] = await Promise.all(titleHistory.titles.filter((title) => isConsoleTitle(title) || (title.type === 'Game' && title.devices?.some((device) => device === 'PC' || device === 'Win32'))).map(async (title) => {
       const titleId = title.titleId || title.name || crypto.randomUUID()
-      return { titleId, name: title.name || 'Unknown title', playedAt: title.titleHistory?.lastTimePlayed || null, cover: title.displayImage || title.images?.find((image) => image.type === 'BoxArt')?.url || title.images?.[0]?.url || null, gamerscore: title.achievement?.currentGamerscore || 0, achievements: title.achievement?.currentAchievements || 0, minutes: title.titleId && index < 5 ? await getMinutesPlayed(profile.id, title.titleId, token) : null, devices: title.devices || [] }
+      return { titleId, name: title.name || 'Unknown title', playedAt: title.titleHistory?.lastTimePlayed || null, cover: title.displayImage || title.images?.find((image) => image.type === 'BoxArt')?.url || title.images?.[0]?.url || null, gamerscore: title.achievement?.currentGamerscore || 0, achievements: title.achievement?.currentAchievements || 0, minutes: title.titleId && timedIds.has(title.titleId) ? await getMinutesPlayed(profile.id, title.titleId, token) : null, devices: title.devices || [] }
     }))
     const currentGame = presence.devices?.filter((device) => ['Xbox360', 'XboxOne', 'XboxSeries', 'Durango', 'Scarlett'].includes(device.type || '')).flatMap((device) => device.titles || []).find((title) => title.state?.toLowerCase() === 'active')?.name || null
     const value: XboxSnapshot = {
@@ -84,7 +86,8 @@ export async function fetchXboxSnapshot(): Promise<XboxSnapshot> {
       profile: { xuid: profile.id, gamertag: setting(profile, 'Gamertag') || setting(profile, 'GameDisplayName'), displayName: setting(profile, 'GameDisplayName') || null, avatar: setting(profile, 'GameDisplayPicRaw') || null, gamerscore: Number(setting(profile, 'Gamerscore')) || 0 },
       state: presence.state || 'Unknown',
       currentGame,
-      games,
+      games: games.filter((game) => consoleIds.has(game.titleId)),
+      pcGames: games.filter((game) => !consoleIds.has(game.titleId)),
       fetchedAt,
     }
     cache.set('xbox', { expiresAt: Date.now() + cacheTtl, value })

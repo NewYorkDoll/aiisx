@@ -1,35 +1,38 @@
 import { useRef, useState } from 'react'
 import { ChevronLeft, ChevronRight, Clock3, Gamepad2, Library, Search, Settings, ShoppingBag, Trophy, Wifi } from 'lucide-react'
-import type { SteamSnapshot, XboxSnapshot } from '../../shared/types'
+import type { SteamSnapshot, XboxGame, XboxSnapshot } from '../../shared/types'
+import { mergePcGames } from '../../shared/pc-library'
 import styles from './PlatformActivity.module.css'
 
-export function SteamActivity({ data }: { data: SteamSnapshot }) {
-  const featured = data.games[0]
-  const online = data.profile?.state === 1
+export function SteamActivity({ data, pcGames = [] }: { data: SteamSnapshot | null; pcGames?: XboxGame[] }) {
+  const games = mergePcGames(data?.games || [], pcGames)
+  const [selectedId, setSelectedId] = useState('')
+  const featured = games.find((game) => game.id === selectedId) || games[0]
+  const online = data?.profile?.state === 1
 
-  return <section className={styles.platformSection} aria-label="Steam activity">
+  return <section className={styles.platformSection} aria-label="PC game library">
     <div className={styles.sectionHeading}>
-      <div><p className="kicker">STEAM / ACTIVITY</p><h2>deck-library</h2></div>
-      <div className={styles.identity}>{data.profile?.avatar && <img src={data.profile.avatar} alt="" />}<span>{data.profile?.name || 'steam account'}<small className={online ? styles.online : ''}>{online ? 'online' : 'offline'}</small></span></div>
+      <div><p className="kicker">STEAM + PC / ACTIVITY</p><h2>deck-library</h2></div>
+      <div className={styles.identity}>{data?.profile?.avatar && <img src={data.profile.avatar} alt="" />}<span>{data?.profile?.name || 'PC library'}<small className={online ? styles.online : ''}>{online ? 'online' : 'offline'}</small></span></div>
     </div>
 
     <div className={styles.steamDeck}>
       <div className={`${styles.deckGrip} ${styles.deckLeft}`} aria-hidden="true"><span className={styles.deckShoulder} /><span className={styles.deckStick} /><span className={styles.deckPad}><i /><i /><i /><i /></span><span className={styles.deckTrackpad} /><span className={styles.deckSpeaker} /><span className={styles.deckMenu} /></div>
       <div className={styles.deckScreen}>
         <header className={styles.steamBar}><span className={styles.steamMark}>S</span><strong>LIBRARY</strong><span><Wifi /> {online ? 'ONLINE' : 'OFFLINE'}</span></header>
-        {data.message ? <p className={styles.platformMessage}>{data.message}</p> : featured ? <div className={styles.steamFeature}>
-          <img src={featured.cover} alt="" />
+        {featured ? <div className={styles.steamFeature}>
+          {featured.cover ? <img src={featured.cover} alt="" /> : <div className={styles.steamPlaceholder}><Gamepad2 /><span>PC LIBRARY</span></div>}
           <div className={styles.steamFeatureCopy}>
-            <small>RECENTLY PLAYED</small>
-            <h3>{featured.name}</h3>
-            <div><span><Clock3 />2 WEEKS<strong>{(data.playTimeMinutes / 60).toFixed(1)} h</strong></span><span><Gamepad2 />PLAY TIME<strong>{(featured.minutes / 60).toFixed(1)} h</strong></span></div>
+            <small>{featured.source.toUpperCase()} / RECENTLY PLAYED</small>
+            <h3>{featured.title}</h3>
+            <div><span><Clock3 />{featured.timeScope === 'period' ? '2 WEEKS' : 'LIFETIME'}<strong>{featured.minutes === null ? 'unavailable' : `${(featured.minutes / 60).toFixed(1)} h`}</strong></span></div>
           </div>
-        </div> : <p className={styles.platformMessage}>no recent Steam games</p>}
-        {data.games.length > 1 && <div className={styles.steamShelf}>{data.games.slice(1).map((game) => <article key={game.appId}><img src={game.cover} alt="" /><h3>{game.name}</h3><span>{(game.minutes / 60).toFixed(1)} h</span></article>)}</div>}
+        </div> : <p className={styles.platformMessage}>{data?.message || 'no recent PC games'}</p>}
         <footer className={styles.steamFooter}><span>STEAM</span><span>SELECT</span><span>•••</span></footer>
       </div>
       <div className={`${styles.deckGrip} ${styles.deckRight}`} aria-hidden="true"><span className={styles.deckShoulder} /><span className={styles.deckButtons}><i data-key="Y" /><i data-key="X" /><i data-key="B" /><i data-key="A" /></span><span className={styles.deckStick} /><span className={styles.deckTrackpad} /><span className={styles.deckSpeaker} /><span className={styles.deckMenu} /></div>
     </div>
+    {games.length > 1 && <div className={styles.pcLibrary} aria-label="选择 PC 游戏">{games.map((game) => <button type="button" key={game.id} aria-pressed={game.id === featured?.id} onClick={() => setSelectedId(game.id)}><small>{game.source}</small><span>{game.title}</span></button>)}</div>}
   </section>
 }
 

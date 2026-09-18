@@ -73,8 +73,28 @@ export type XboxSnapshot = {
   state: 'Online' | 'Offline' | 'Unknown'
   currentGame: string | null
   games: XboxGame[]
+  pcGames?: XboxGame[]
   fetchedAt: string
   message?: string
+}
+
+export type GameShareReport = {
+  from: string
+  to: string
+  generatedAt: string
+  platforms: Array<{
+    name: 'Switch' | 'PC' | 'Xbox'
+    syncedAt: string | null
+    games: Array<{
+      id: string
+      title: string
+      playedAt: string
+      minutes: number | null
+      timeScope: 'period' | 'lifetime'
+      achievements?: number
+      sharedWithPc?: boolean
+    }>
+  }>
 }
 
 export type FitnessSnapshot = {

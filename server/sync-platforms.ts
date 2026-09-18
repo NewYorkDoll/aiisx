@@ -51,7 +51,7 @@ async function syncXbox(): Promise<SyncResult> {
   try {
     const snapshot = await fetchXboxSnapshot()
     if (snapshot.message) throw new Error(snapshot.message)
-    log('Xbox', `received ${snapshot.games.length} games; writing database...`)
+    log('Xbox', `received ${snapshot.games.length} console/shared games and ${snapshot.pcGames?.length || 0} PC games; writing database...`)
     await saveXboxSnapshot(snapshot)
     log('Xbox', `done: ${snapshot.games.length} games (${elapsed(startedAt)})`)
     return { platform: 'Xbox', status: 'success', durationMs: duration(startedAt) }

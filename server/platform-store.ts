@@ -1,4 +1,4 @@
-import type { FitnessSnapshot, SteamSnapshot, XboxSnapshot } from '../shared/types.js'
+import type { FitnessSnapshot, SteamSnapshot, XboxGame, XboxSnapshot } from '../shared/types.js'
 import { closeDatabase, database, ensureDatabaseSchema } from './database.js'
 
 export async function closePlatformStore() {
@@ -67,7 +67,7 @@ export async function saveXboxSnapshot(snapshot: XboxSnapshot) {
           current_game = excluded.current_game, fetched_at = excluded.fetched_at`,
       args: [profile.xuid, profile.gamertag, profile.displayName, profile.avatar, profile.gamerscore, snapshot.state, snapshot.currentGame, snapshot.fetchedAt],
     },
-    ...snapshot.games.map((game) => ({
+    ...[...snapshot.games, ...(snapshot.pcGames || [])].map((game) => ({
       sql: `INSERT INTO xbox_game_activity
         (title_id, name, played_at, cover, gamerscore, achievements, minutes, devices, synced_at)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -87,8 +87,16 @@ export async function getStoredXboxSnapshot() {
   if (!profile) return null
   const games = await database.execute(`SELECT title_id, name, played_at, cover, gamerscore, achievements, minutes, devices
     FROM xbox_game_activity
-    WHERE EXISTS (SELECT 1 FROM json_each(devices) WHERE value IN ('Xbox360', 'XboxOne', 'XboxSeries'))
-    ORDER BY played_at DESC, synced_at DESC LIMIT 5`)
+    ORDER BY played_at DESC, synced_at DESC`)
+  const mapped: XboxGame[] = games.rows.map((game) => ({
+    titleId: String(game.title_id), name: String(game.name),
+    playedAt: game.played_at === null ? null : String(game.played_at),
+    cover: game.cover === null ? null : String(game.cover),
+    gamerscore: Number(game.gamerscore), achievements: Number(game.achievements),
+    minutes: game.minutes === null ? null : Number(game.minutes),
+    devices: JSON.parse(String(game.devices)) as string[],
+  }))
+  const isConsole = (game: XboxGame) => game.devices.some((device) => ['Xbox360', 'XboxOne', 'XboxSeries'].includes(device))
   return {
     configured: true,
     profile: {
@@ -100,16 +108,8 @@ export async function getStoredXboxSnapshot() {
     },
     state: String(profile.state) as XboxSnapshot['state'],
     currentGame: profile.current_game === null ? null : String(profile.current_game),
-    games: games.rows.map((game) => ({
-      titleId: String(game.title_id),
-      name: String(game.name),
-      playedAt: game.played_at === null ? null : String(game.played_at),
-      cover: game.cover === null ? null : String(game.cover),
-      gamerscore: Number(game.gamerscore),
-      achievements: Number(game.achievements),
-      minutes: game.minutes === null ? null : Number(game.minutes),
-      devices: JSON.parse(String(game.devices)) as string[],
-    })),
+    games: mapped.filter(isConsole).slice(0, 5),
+    pcGames: mapped.filter((game) => !isConsole(game) && game.devices.some((device) => device === 'PC' || device === 'Win32')).slice(0, 10),
     fetchedAt: String(profile.fetched_at),
   } satisfies XboxSnapshot
 }
