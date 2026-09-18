@@ -47,6 +47,20 @@ try {
   assert.deepEqual(xbox?.games.map((item) => item.titleId).sort(), ['console', 'shared'])
   assert.deepEqual(xbox?.games.find((item) => item.titleId === 'shared')?.devices, ['PC', 'XboxSeries'])
   console.log('Xbox sync: PC-only games and old unclassified rows excluded, shared platform metadata retained')
+  const { default: app } = await import('../server/app.js')
+  const { createHmac } = await import('node:crypto')
+  process.env.ADMIN_TOKEN = 'test-only-admin'
+  assert.equal((await app.request('/api/admin/sync', { method: 'POST' })).status, 401)
+  const payload = `${Math.floor(Date.now() / 1000)}.${Math.floor(Date.now() / 1000) + 60}`
+  const signature = createHmac('sha256', process.env.ADMIN_TOKEN).update(payload).digest('base64url')
+  const headers = { Cookie: `aiisx_admin_session=${payload}.${signature}`, 'Content-Type': 'application/json' }
+  assert.equal((await app.request('/api/admin/sync', { method: 'POST', headers, body: JSON.stringify({ platforms: ['Other'] }) })).status, 400)
+  malformed = false
+  const manual = await app.request('/api/admin/sync', { method: 'POST', headers, body: JSON.stringify({ platforms: ['Switch'] }) })
+  const result = await manual.json() as { succeeded: number; results: Array<{ platform: string }> }
+  assert.equal(result.succeeded, 1)
+  assert.deepEqual(result.results.map((item) => item.platform), ['Switch'])
+  console.log('Manual recovery: admin auth, platform validation and selected-platform sync passed')
 } finally {
   globalThis.fetch = originalFetch
   await closeDatabase()

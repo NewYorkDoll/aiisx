@@ -155,6 +155,16 @@ app.get('/api/admin/sync-runs', async (c) => {
   return c.json({ items: await listSyncRuns(Number.isFinite(requestedLimit) ? requestedLimit : 12) })
 })
 
+app.post('/api/admin/sync', async (c) => {
+  if (!isAdmin(c)) return c.json({ message: 'Unauthorized' }, 401)
+  const body = await c.req.json().catch(() => null)
+  if (!Array.isArray(body?.platforms) || !body.platforms.length || body.platforms.length > 4 || body.platforms.some((platform: unknown) => !['Switch', 'Steam', 'Xbox', 'Fitness'].includes(String(platform)))) {
+    return c.json({ message: 'Select Switch, Steam, Xbox or Fitness' }, 400)
+  }
+  const { syncPlatforms } = await import('./sync-platforms.js')
+  return c.json(await syncPlatforms({ trigger: 'manual', platforms: body.platforms }))
+})
+
 app.get('/api/admin/media/config', (c) => {
   if (!isAdmin(c)) return c.json({ message: 'Unauthorized' }, 401)
   return c.json(mediaConfiguration())

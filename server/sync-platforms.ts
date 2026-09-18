@@ -96,7 +96,7 @@ function skipped(platform: string, message: string): SyncResult {
   return { platform, status: 'skipped', durationMs: 0, message }
 }
 
-export async function syncPlatforms(options: { trigger?: SyncTrigger; slot?: string | null } = {}) {
+export async function syncPlatforms(options: { trigger?: SyncTrigger; slot?: string | null; platforms?: string[] } = {}) {
   const startedAt = performance.now()
   log('Database', `using ${databaseLocation}`)
   const tasks: Array<{ platform: string; execute: () => Promise<SyncResult> }> = []
@@ -113,9 +113,10 @@ export async function syncPlatforms(options: { trigger?: SyncTrigger; slot?: str
   if (process.env.KEEPSTRONG_API_KEY) {
     tasks.push({ platform: 'Fitness', execute: syncFitness })
   } else tasks.push({ platform: 'Fitness', execute: async () => skipped('Fitness', 'missing KEEPSTRONG_API_KEY') })
-  const run = await startSyncRun(options.trigger || 'manual', options.slot || null, tasks.map((task) => task.platform))
-  log('Sync', `started ${tasks.length} platform tasks in parallel`)
-  const results = await Promise.all(tasks.map(async (task) => {
+  const selected = tasks.filter((task) => !options.platforms || options.platforms.includes(task.platform))
+  const run = await startSyncRun(options.trigger || 'manual', options.slot || null, selected.map((task) => task.platform))
+  log('Sync', `started ${selected.length} platform tasks in parallel`)
+  const results = await Promise.all(selected.map(async (task) => {
     const result = await task.execute()
     await finishSyncItem(run.itemIds.get(task.platform)!, result)
     return result
