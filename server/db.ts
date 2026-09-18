@@ -8,8 +8,9 @@ export async function ensureSwitchSchema() {
 export async function listGames(): Promise<GameRecord[]> {
   await ensureDatabaseSchema()
   const result = await database.execute(`
-    SELECT id, title_name, zh_name, zh_cover, last_played_at, play_time
+    SELECT id, title_name, zh_name, zh_cover, MAX(last_played_at) AS last_played_at, SUM(play_time) AS play_time
     FROM dwd_switch_game_played_record
+    GROUP BY title_id
     ORDER BY last_played_at DESC
     LIMIT 24
   `)
