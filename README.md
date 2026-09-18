@@ -36,6 +36,12 @@ npm run sync:platforms:schedule
 
 同步任务默认每天 12:00 和 20:00 执行。所有同步结果都会持久化到下方配置的 SQLite 数据库。
 
+游戏页的 `share --last-14d` 按钮会生成可预览、下载的 PNG 海报；支持文件分享的浏览器还可以调用系统分享。
+统计范围为上海日期的最近 14 天（含今天），从数据库读取，不在分享时请求游戏平台。
+Switch 使用 Nintendo 的逐日记录并按日期覆盖入库；Steam 使用最近一次同步的两周时长；Xbox 只展示这段时间玩过的游戏，时长、成就明确标为累计值。PC 专属游戏归入 `deck-library`，Steam 与 PC 历史同名游戏优先采用 Steam 时长。Xbox/PC 共用版本会标注共享记录，接口不能区分最后实际使用的设备。
+
+管理员可用已登录会话向 `POST /api/admin/sync` 发送 `{"platforms":["Switch","Steam","Xbox"]}` 补跑指定平台，执行结果仍记录在同步历史中。运行 `npm run check:games` 验证平台归属、重复同步及海报统计边界（使用内存数据库）。
+
 ## SQLite 数据库
 
 项目的文章、Switch、Steam、Xbox 和健身数据统一保存在 SQLite。未配置数据库地址时，本地默认使用：

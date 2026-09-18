@@ -10,6 +10,7 @@ if (process.env.HTTPS_PROXY) setGlobalDispatcher(new ProxyAgent(process.env.HTTP
 
 type AccessToken = { token_type: string; access_token: string }
 type PlayHistory = { titleId: string; titleName: string; imageUrl?: string; lastPlayedAt: string; totalPlayedMinutes: number }
+type HistoryResponse = { playHistories: PlayHistory[]; recentPlayHistories?: Array<{ playedDate: string; dailyPlayHistories: Array<{ titleId: string; titleName: string; totalPlayedMinutes: number }> }> }
 
 const clientId = process.env.SWITCH_CLIENT_ID
 const sessionToken = process.env.SWITCH_SESSION_TOKEN
@@ -40,9 +41,10 @@ async function getAccessToken(progress: Progress) {
 async function getHistory(token: AccessToken, progress: Progress) {
   const response = await request(playHistoryUrl, { headers: { Authorization: `${token.token_type} ${token.access_token}`, 'User-Agent': userAgent, 'gentry-locale': 'en-US' } }, (attempt) => progress(`play history request failed; retrying ${attempt}/3...`))
   if (!response.ok) throw new Error(`Nintendo history request failed: ${response.status}`)
-  const data = await response.json() as { playHistories?: PlayHistory[] }
+  const data = await response.json() as HistoryResponse
   if (!Array.isArray(data.playHistories)) throw new Error('Nintendo history response is missing playHistories')
-  return data.playHistories
+  if (!Array.isArray(data.recentPlayHistories)) throw new Error('Nintendo history response is missing recentPlayHistories')
+  return data
 }
 
 async function getChineseInfo(titleId: string, fallbackName: string, fallbackCover: string | undefined) {
@@ -61,7 +63,8 @@ export async function syncGames(progress: Progress = () => undefined) {
   progress('requesting Nintendo access token...')
   const token = await getAccessToken(progress)
   progress('access token received; requesting play history...')
-  const histories = await getHistory(token, progress)
+  const history = await getHistory(token, progress)
+  const histories = history.playHistories
   progress(`received ${histories.length} play history records; checking database...`)
   const rawRows = await database.execute('SELECT title_id, zh_name, zh_cover, SUM(play_time) AS total_play_time, MAX(last_played_at) AS last_played_at FROM dwd_switch_game_played_record GROUP BY title_id')
   const previous = new Map(rawRows.rows.map((row) => [String(row.title_id), {
@@ -87,6 +90,19 @@ export async function syncGames(progress: Progress = () => undefined) {
       args: [game.titleId, game.titleName, info.name, info.cover, playedAt.toISOString(), delta, timestamp, timestamp],
     })
     inserted += 1
+  }
+  const dailyRows = (history.recentPlayHistories || []).flatMap((day) => day.dailyPlayHistories.map((game) => {
+    const date = day.playedDate.slice(0, 10)
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || !Number.isFinite(Date.parse(day.playedDate)) || !game.titleId || !Number.isFinite(game.totalPlayedMinutes) || game.totalPlayedMinutes < 0) throw new Error('Nintendo returned an invalid daily play history record')
+    return {
+      sql: `INSERT INTO switch_daily_activity (title_id, played_date, title, minutes, synced_at) VALUES (?, ?, ?, ?, ?)
+        ON CONFLICT(title_id, played_date) DO UPDATE SET title = excluded.title, minutes = excluded.minutes, synced_at = excluded.synced_at`,
+      args: [game.titleId, date, previous.get(game.titleId)?.name || game.titleName, game.totalPlayedMinutes, new Date().toISOString()],
+    }
+  }))
+  if (dailyRows.length) {
+    await database.batch(dailyRows, 'write')
+    progress(`saved ${dailyRows.length} daily play records`)
   }
   return { histories: histories.length, inserted }
 }

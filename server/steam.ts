@@ -45,7 +45,7 @@ export async function fetchSteamSnapshot(): Promise<SteamSnapshot> {
     ])
     const player = summary.response?.players?.[0]
     const lastPlayed = new Map((owned.response?.games || []).map((game) => [game.appid, game.rtime_last_played || 0]))
-    const games: SteamGame[] = (recent.response?.games || []).slice(0, 5).map((game) => ({
+    const games: SteamGame[] = (recent.response?.games || []).map((game) => ({
       appId: game.appid,
       name: game.name,
       minutes: game.playtime_2weeks || 0,

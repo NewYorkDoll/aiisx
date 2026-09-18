@@ -14,7 +14,11 @@ globalThis.fetch = async (input, init) => {
   if (url.includes('/api/token')) return Response.json({ token_type: 'Bearer', access_token: 'test-access' })
   if (url.includes('/play_histories')) {
     assert.equal(new Headers(init?.headers).get('gentry-locale'), 'en-US')
-    return Response.json(malformed ? {} : { playHistories: [{ titleId: 'switch-game', titleName: 'Example', lastPlayedAt: '2026-09-17T21:00:00+05:30', totalPlayedMinutes: minutes }] })
+    return Response.json(malformed ? {} : { playHistories: [{ titleId: 'switch-game', titleName: 'Example', lastPlayedAt: '2026-09-17T21:00:00+05:30', totalPlayedMinutes: minutes }], recentPlayHistories: [
+      { playedDate: '2026-09-04T00:00:00Z', dailyPlayHistories: [{ titleId: 'switch-game', titleName: 'Example', totalPlayedMinutes: 10 }] },
+      { playedDate: '2026-09-05T00:00:00Z', dailyPlayHistories: [{ titleId: 'switch-game', titleName: 'Example', totalPlayedMinutes: 20 }] },
+      { playedDate: '2026-09-17T00:00:00Z', dailyPlayHistories: [{ titleId: 'switch-game', titleName: 'Example', totalPlayedMinutes: minutes }] },
+    ] })
   }
   return new Response('', { status: 404 })
 }
@@ -26,6 +30,10 @@ try {
   const rows = await database.execute('SELECT SUM(play_time) AS minutes, MAX(last_played_at) AS played_at FROM dwd_switch_game_played_record')
   assert.equal(rows.rows[0].minutes, 90)
   assert.equal(rows.rows[0].played_at, '2026-09-17T15:30:00.000Z')
+  const { listGames } = await import('../server/db.js')
+  const archive = await listGames()
+  assert.equal(archive.length, 1)
+  assert.equal(archive[0].minutes, 90)
   malformed = true
   await assert.rejects(syncGames(), /missing playHistories/)
   console.log('Switch sync: locale, repeat sync, increasing minutes and invalid responses passed')
@@ -46,6 +54,7 @@ try {
   const xbox = await getStoredXboxSnapshot()
   assert.deepEqual(xbox?.games.map((item) => item.titleId).sort(), ['console', 'shared'])
   assert.deepEqual(xbox?.games.find((item) => item.titleId === 'shared')?.devices, ['PC', 'XboxSeries'])
+  assert.deepEqual(xbox?.pcGames?.map((item) => item.titleId), ['pc'])
   console.log('Xbox sync: PC-only games and old unclassified rows excluded, shared platform metadata retained')
   const { default: app } = await import('../server/app.js')
   const { createHmac } = await import('node:crypto')
@@ -61,6 +70,26 @@ try {
   assert.equal(result.succeeded, 1)
   assert.deepEqual(result.results.map((item) => item.platform), ['Switch'])
   console.log('Manual recovery: admin auth, platform validation and selected-platform sync passed')
+  const { saveSteamSnapshot } = await import('../server/platform-store.js')
+  const { getGameReport } = await import('../server/game-report.js')
+  const { mergePcGames } = await import('../shared/pc-library.js')
+  const steamGame = { appId: 1, name: 'EXAMPLE', minutes: 30, cover: '', playedAt: '2026-09-17T00:00:00Z' }
+  assert.equal(mergePcGames([steamGame], xbox?.pcGames || []).length, 1)
+  assert.equal(mergePcGames([{ ...steamGame, playedAt: '2026-09-06T00:00:00Z' }], xbox?.pcGames || [])[0].playedAt, '2026-09-17T00:00:00Z')
+  const steamProfile = { name: 'test', avatar: '', state: 0, profileUrl: '' }
+  await saveSteamSnapshot({ configured: true, profile: steamProfile, playTimeMinutes: 10, games: [{ ...steamGame, appId: 99, name: 'Stale snapshot' }], fetchedAt: '2026-09-10T00:00:00Z' })
+  await saveSteamSnapshot({ configured: true, profile: steamProfile, playTimeMinutes: 30, games: [steamGame], fetchedAt: '2026-09-18T00:00:00Z' })
+  const report = await getGameReport(new Date('2026-09-18T00:00:00Z'))
+  assert.equal(report.from, '2026-09-05')
+  assert.equal(report.to, '2026-09-18')
+  assert.equal(report.platforms[0].games[0].minutes, 110)
+  assert.equal(report.platforms[0].games[0].timeScope, 'period')
+  assert.equal(report.platforms[1].games.length, 1)
+  assert.equal(report.platforms[1].games[0].minutes, 30)
+  assert.equal(report.platforms[2].games.length, 2)
+  assert.equal(report.platforms[2].games[0].timeScope, 'lifetime')
+  assert.ok(report.platforms[2].games.some((item) => item.sharedWithPc))
+  console.log('Poster: inclusive 14-day boundary, daily upserts, stale Steam exclusion, PC deduplication and time scopes passed')
 } finally {
   globalThis.fetch = originalFetch
   await closeDatabase()

@@ -1,4 +1,4 @@
-import type { BlogPost, FitnessSnapshot, GameRecord, MediaAsset, PostInput, SteamSnapshot, SyncRun, XboxSnapshot } from '../../shared/types'
+import type { BlogPost, FitnessSnapshot, GameRecord, GameShareReport, MediaAsset, PostInput, SteamSnapshot, SyncRun, XboxSnapshot } from '../../shared/types'
 
 const API_URL = import.meta.env.VITE_API_URL || ''
 
@@ -105,6 +105,12 @@ export async function getGames() {
   const response = await fetch(`${API_URL}/api/games`)
   if (!response.ok) throw new Error('Unable to load games')
   return (await response.json() as { items: GameRecord[] }).items
+}
+
+export async function getGameShareReport() {
+  const response = await fetch(`${API_URL}/api/games/share`, { signal: AbortSignal.timeout(30_000) })
+  if (!response.ok) throw new Error('游戏记录读取失败，请稍后重试')
+  return await response.json() as GameShareReport
 }
 
 export async function getFitness() {

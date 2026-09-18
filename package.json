@@ -20,6 +20,7 @@
     "typecheck:server": "tsc --noEmit -p tsconfig.server.json",
     "build": "npm run typecheck:server && tsc -b && vite build",
     "lint": "oxlint",
+    "check:games": "tsx scripts/check-game-sync.ts",
     "preview": "vite preview",
     "verify:production": "tsx scripts/verify-production.ts"
   },

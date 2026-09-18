@@ -53,6 +53,14 @@ const schema = [
     ON dwd_switch_game_played_record (title_id)`,
   `CREATE INDEX IF NOT EXISTS idx_switch_last_played_at
     ON dwd_switch_game_played_record (last_played_at DESC)`,
+  `CREATE TABLE IF NOT EXISTS switch_daily_activity (
+    title_id TEXT NOT NULL,
+    played_date TEXT NOT NULL,
+    title TEXT NOT NULL,
+    minutes INTEGER NOT NULL,
+    synced_at TEXT NOT NULL,
+    PRIMARY KEY (title_id, played_date)
+  )`,
   `CREATE TABLE IF NOT EXISTS steam_profile_snapshot (
     id INTEGER PRIMARY KEY CHECK (id = 1),
     name TEXT NOT NULL,

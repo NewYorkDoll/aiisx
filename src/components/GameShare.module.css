@@ -1,0 +1,21 @@
+.trigger { align-items: center; background: transparent; border: 1px solid #4b5841; border-radius: 4px; color: var(--lime); cursor: pointer; display: inline-flex; flex-wrap: wrap; font: .75rem var(--mono); gap: 10px; margin: 0 0 26px; min-height: 44px; padding: 12px 16px; }
+.trigger small { border-left: 1px solid #4b5841; color: #adb4ab; padding-left: 10px; }
+.trigger:hover { background: #222c1d; }
+.trigger:disabled { cursor: progress; opacity: .65; }
+.dialog { background: #111519; border: 1px solid #374047; border-radius: 8px; color: #f4f3ee; max-height: 90dvh; max-width: 760px; padding: 0; width: calc(100% - 24px); }
+.dialog::backdrop { background: rgb(0 0 0 / .76); }
+.dialog header { align-items: center; border-bottom: 1px solid #30363a; display: flex; justify-content: space-between; padding: 20px 24px; }
+.dialog header span { color: #c8f278; font: .65rem var(--mono); }
+.dialog h2 { font-size: 1.05rem; font-weight: 500; margin: 6px 0 0; }
+.dialog button, .dialog a { align-items: center; background: #20282e; border: 1px solid #424c52; border-radius: 4px; color: #f4f3ee; cursor: pointer; display: inline-flex; font: inherit; gap: 8px; justify-content: center; min-height: 44px; min-width: 44px; padding: 10px 14px; text-decoration: none; }
+.dialog a { background: #c8f278; border-color: #c8f278; color: #111519; }
+.dialog :focus-visible, .trigger:focus-visible { outline: 2px solid #c8f278; outline-offset: 3px; }
+.preview { background: #080b0d; max-height: 62dvh; min-height: 180px; overflow: auto; padding: 20px; }
+.preview img { display: block; height: auto; margin: auto; max-width: 100%; width: 480px; }
+.preview p { color: #c8f278; font: .85rem/2 var(--mono); margin: 50px 0; text-align: center; }
+.preview p[role='alert'] { color: #ff7968; }
+.preview small { color: #a0a6ad; }
+.dialog footer { align-items: center; display: flex; flex-wrap: wrap; gap: 12px; justify-content: space-between; padding: 16px 24px; }
+.dialog footer p { color: #a0a6ad; font-size: .75rem; margin: 0; }
+.dialog footer div { display: flex; flex-wrap: wrap; gap: 8px; }
+@media (max-width: 480px) { .dialog header, .dialog footer { padding: 16px; } .preview { padding: 8px; } .trigger { width: 100%; } }

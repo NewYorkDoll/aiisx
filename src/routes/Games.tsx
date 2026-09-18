@@ -1,6 +1,7 @@
 import { Skeleton } from '../components/DataSkeleton'
 import { Prompt, PromptInput } from '../components/Prompt'
 import { SwitchConsole } from '../components/SwitchConsole'
+import { GameShare } from '../components/GameShare'
 import { SteamActivity, XboxActivity } from '../components/PlatformActivity'
 import { getGames, getSteam, getXbox } from '../lib/api'
 import { usePageMeta } from '../lib/meta'
@@ -33,8 +34,9 @@ export default function Games() {
   return <div className="route-stack data-view" aria-busy={pending || refreshing}>
     <Prompt command="games --recent">
       <div className="module-intro"><p className="kicker">ARCHIVE / SWITCH + STEAM + XBOX</p><h1>No Game<br /><em>No Life.</em></h1><p className="lede">最近打开的游戏，以及每次存档之后还想再玩一会儿的理由。</p></div>
+      <GameShare />
       <SwitchConsole games={games} loading={pending} />
-      {pending ? <><PlatformSkeleton label="Steam" /><PlatformSkeleton label="Xbox" /></> : <>{data?.steam && <div className="data-reveal"><SteamActivity data={data.steam} /></div>}{data?.xbox && <div className="data-reveal"><XboxActivity data={data.xbox} /></div>}</>}
+      {pending ? <><PlatformSkeleton label="Steam" /><PlatformSkeleton label="Xbox" /></> : <>{(data?.steam || data?.xbox?.pcGames?.length) ? <div className="data-reveal"><SteamActivity data={data?.steam || null} pcGames={data?.xbox?.pcGames} /></div> : null}{data?.xbox && <div className="data-reveal"><XboxActivity data={data.xbox} /></div>}</>}
     </Prompt>
     <PromptInput />
   </div>
