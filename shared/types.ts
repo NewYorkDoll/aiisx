@@ -58,6 +58,7 @@ export type XboxGame = {
   gamerscore: number
   achievements: number
   minutes: number | null
+  devices: string[]
 }
 
 export type XboxSnapshot = {

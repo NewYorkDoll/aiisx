@@ -69,13 +69,13 @@ export async function saveXboxSnapshot(snapshot: XboxSnapshot) {
     },
     ...snapshot.games.map((game) => ({
       sql: `INSERT INTO xbox_game_activity
-        (title_id, name, played_at, cover, gamerscore, achievements, minutes, synced_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        (title_id, name, played_at, cover, gamerscore, achievements, minutes, devices, synced_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT(title_id) DO UPDATE SET
           name = excluded.name, played_at = excluded.played_at, cover = excluded.cover,
           gamerscore = excluded.gamerscore, achievements = excluded.achievements,
-          minutes = excluded.minutes, synced_at = excluded.synced_at`,
-      args: [game.titleId, game.name, game.playedAt, game.cover, game.gamerscore, game.achievements, game.minutes, snapshot.fetchedAt],
+          minutes = COALESCE(excluded.minutes, xbox_game_activity.minutes), devices = excluded.devices, synced_at = excluded.synced_at`,
+      args: [game.titleId, game.name, game.playedAt, game.cover, game.gamerscore, game.achievements, game.minutes, JSON.stringify(game.devices), snapshot.fetchedAt],
     })),
   ], 'write')
 }
@@ -85,7 +85,10 @@ export async function getStoredXboxSnapshot() {
   const profileResult = await database.execute('SELECT xuid, gamertag, display_name, avatar, gamerscore, state, current_game, fetched_at FROM xbox_profile_snapshot WHERE id = 1 LIMIT 1')
   const profile = profileResult.rows[0]
   if (!profile) return null
-  const games = await database.execute('SELECT title_id, name, played_at, cover, gamerscore, achievements, minutes FROM xbox_game_activity ORDER BY played_at DESC, synced_at DESC LIMIT 5')
+  const games = await database.execute(`SELECT title_id, name, played_at, cover, gamerscore, achievements, minutes, devices
+    FROM xbox_game_activity
+    WHERE EXISTS (SELECT 1 FROM json_each(devices) WHERE value IN ('Xbox360', 'XboxOne', 'XboxSeries'))
+    ORDER BY played_at DESC, synced_at DESC LIMIT 5`)
   return {
     configured: true,
     profile: {
@@ -105,6 +108,7 @@ export async function getStoredXboxSnapshot() {
       gamerscore: Number(game.gamerscore),
       achievements: Number(game.achievements),
       minutes: game.minutes === null ? null : Number(game.minutes),
+      devices: JSON.parse(String(game.devices)) as string[],
     })),
     fetchedAt: String(profile.fetched_at),
   } satisfies XboxSnapshot

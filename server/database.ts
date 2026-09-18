@@ -89,6 +89,7 @@ const schema = [
     gamerscore INTEGER NOT NULL,
     achievements INTEGER NOT NULL,
     minutes INTEGER,
+    devices TEXT NOT NULL DEFAULT '[]',
     synced_at TEXT NOT NULL
   )`,
   `CREATE TABLE IF NOT EXISTS xbox_auth (
@@ -181,6 +182,10 @@ async function initializeDatabaseSchema() {
   const steamColumns = await database.execute('PRAGMA table_info(steam_game_activity)')
   if (!steamColumns.rows.some((column) => String(column.name) === 'played_at')) {
     await database.execute('ALTER TABLE steam_game_activity ADD COLUMN played_at TEXT')
+  }
+  const xboxColumns = await database.execute('PRAGMA table_info(xbox_game_activity)')
+  if (!xboxColumns.rows.some((column) => String(column.name) === 'devices')) {
+    await database.execute("ALTER TABLE xbox_game_activity ADD COLUMN devices TEXT NOT NULL DEFAULT '[]'")
   }
 }
 

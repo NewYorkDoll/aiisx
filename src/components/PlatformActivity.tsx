@@ -66,7 +66,7 @@ export function XboxActivity({ data }: { data: XboxSnapshot }) {
         </header>
         {data.message ? <p className={styles.platformMessage}>{data.message}</p> : <>
           <div className={styles.xboxSpotlight}>
-            <small>QUICK RESUME</small>
+            <small>{featured?.devices?.some((device) => device === 'PC' || device === 'Win32') ? 'XBOX / PC · SHARED ACTIVITY' : 'RECENTLY PLAYED'}</small>
             <h3>{featured?.name || 'dashboard'}</h3>
             {featured && <p><Trophy /> {featured.achievements} achievements <span>/</span> {featured.gamerscore} G</p>}
           </div>

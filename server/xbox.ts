@@ -5,13 +5,17 @@ import { loadXboxTokenStore, saveXboxTokenStore } from './xbox-token-store.js'
 type WebToken = { data: { Token: string; DisplayClaims: { xui: Array<{ uhs: string }> } } }
 type Profile = { id: string; settings?: Array<{ id: string; value: string }> }
 type ProfileResponse = { profileUsers?: Profile[] }
-type PresenceResponse = { state?: 'Online' | 'Offline'; devices?: Array<{ titles?: Array<{ name?: string; state?: string }> }> }
-type Title = { titleId?: string; name?: string; displayImage?: string | null; images?: Array<{ url?: string; type?: string }>; achievement?: { currentGamerscore?: number; currentAchievements?: number }; titleHistory?: { lastTimePlayed?: string } }
+type PresenceResponse = { state?: 'Online' | 'Offline'; devices?: Array<{ type?: string; titles?: Array<{ name?: string; state?: string }> }> }
+type Title = { titleId?: string; name?: string; type?: string; devices?: string[]; displayImage?: string | null; images?: Array<{ url?: string; type?: string }>; achievement?: { currentGamerscore?: number; currentAchievements?: number }; titleHistory?: { lastTimePlayed?: string } }
 type TitleHistoryResponse = { titles?: Title[] }
 type UserStatsResponse = { groups?: Array<{ statlistscollection?: Array<{ stats?: Array<{ name?: string; value?: string }> }> }> }
 
 const cache = new Map<string, { expiresAt: number; value: XboxSnapshot }>()
 const cacheTtl = 15 * 60 * 1000
+
+export function isConsoleTitle(title: Title) {
+  return title.type === 'Game' && Boolean(title.devices?.some((device) => ['Xbox360', 'XboxOne', 'XboxSeries'].includes(device)))
+}
 
 async function xboxFetch<T>(path: string, token: WebToken, contractVersion = 3) {
   const response = await fetch(`https://${path}`, {
@@ -69,11 +73,12 @@ export async function fetchXboxSnapshot(): Promise<XboxSnapshot> {
       xboxFetch<PresenceResponse>('userpresence.xboxlive.com/users/me?level=all', token).catch(() => ({ state: undefined, devices: [] } as PresenceResponse)),
       xboxFetch<TitleHistoryResponse>(`titlehub.xboxlive.com/users/xuid(${profile.id})/titles/titlehistory/decoration/achievement,image,scid`, token, 2),
     ])
-    const games: XboxGame[] = await Promise.all((titleHistory.titles || []).slice(0, 5).map(async (title) => {
+    if (!Array.isArray(titleHistory.titles)) throw new Error('Xbox title history response is missing titles')
+    const games: XboxGame[] = await Promise.all(titleHistory.titles.filter(isConsoleTitle).map(async (title, index) => {
       const titleId = title.titleId || title.name || crypto.randomUUID()
-      return { titleId, name: title.name || 'Unknown title', playedAt: title.titleHistory?.lastTimePlayed || null, cover: title.displayImage || title.images?.find((image) => image.type === 'BoxArt')?.url || title.images?.[0]?.url || null, gamerscore: title.achievement?.currentGamerscore || 0, achievements: title.achievement?.currentAchievements || 0, minutes: title.titleId ? await getMinutesPlayed(profile.id, title.titleId, token) : null }
+      return { titleId, name: title.name || 'Unknown title', playedAt: title.titleHistory?.lastTimePlayed || null, cover: title.displayImage || title.images?.find((image) => image.type === 'BoxArt')?.url || title.images?.[0]?.url || null, gamerscore: title.achievement?.currentGamerscore || 0, achievements: title.achievement?.currentAchievements || 0, minutes: title.titleId && index < 5 ? await getMinutesPlayed(profile.id, title.titleId, token) : null, devices: title.devices || [] }
     }))
-    const currentGame = presence.devices?.flatMap((device) => device.titles || []).find((title) => title.state?.toLowerCase() === 'active')?.name || null
+    const currentGame = presence.devices?.filter((device) => ['Xbox360', 'XboxOne', 'XboxSeries', 'Durango', 'Scarlett'].includes(device.type || '')).flatMap((device) => device.titles || []).find((title) => title.state?.toLowerCase() === 'active')?.name || null
     const value: XboxSnapshot = {
       configured: true,
       profile: { xuid: profile.id, gamertag: setting(profile, 'Gamertag') || setting(profile, 'GameDisplayName'), displayName: setting(profile, 'GameDisplayName') || null, avatar: setting(profile, 'GameDisplayPicRaw') || null, gamerscore: Number(setting(profile, 'Gamerscore')) || 0 },

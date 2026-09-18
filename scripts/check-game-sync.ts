@@ -29,6 +29,24 @@ try {
   malformed = true
   await assert.rejects(syncGames(), /missing playHistories/)
   console.log('Switch sync: locale, repeat sync, increasing minutes and invalid responses passed')
+  const { isConsoleTitle } = await import('../server/xbox.js')
+  const { saveXboxSnapshot, getStoredXboxSnapshot } = await import('../server/platform-store.js')
+  assert.equal(isConsoleTitle({ type: 'Game', devices: ['Win32'] }), false)
+  assert.equal(isConsoleTitle({ type: 'Game', devices: ['PC'] }), false)
+  assert.equal(isConsoleTitle({ type: 'Game', devices: ['XboxSeries', 'PC'] }), true)
+  assert.equal(isConsoleTitle({ type: 'App', devices: ['XboxOne'] }), false)
+  assert.equal(isConsoleTitle({ type: 'Game' }), false)
+  const game = { name: 'Example', playedAt: '2026-09-17T00:00:00Z', cover: null, gamerscore: 0, achievements: 0, minutes: null }
+  await saveXboxSnapshot({ configured: true, state: 'Offline', currentGame: null, fetchedAt: '2026-09-18T00:00:00Z', profile: { xuid: 'test', gamertag: 'test', displayName: null, avatar: null, gamerscore: 0 }, games: [
+    { ...game, titleId: 'pc', devices: ['Win32'] },
+    { ...game, titleId: 'legacy', devices: [] },
+    { ...game, titleId: 'console', devices: ['XboxSeries'] },
+    { ...game, titleId: 'shared', devices: ['PC', 'XboxSeries'] },
+  ] })
+  const xbox = await getStoredXboxSnapshot()
+  assert.deepEqual(xbox?.games.map((item) => item.titleId).sort(), ['console', 'shared'])
+  assert.deepEqual(xbox?.games.find((item) => item.titleId === 'shared')?.devices, ['PC', 'XboxSeries'])
+  console.log('Xbox sync: PC-only games and old unclassified rows excluded, shared platform metadata retained')
 } finally {
   globalThis.fetch = originalFetch
   await closeDatabase()
