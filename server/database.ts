@@ -44,6 +44,7 @@ const schema = [
     title_name TEXT NOT NULL,
     zh_name TEXT,
     zh_cover TEXT,
+    metadata_checked_at TEXT,
     last_played_at TEXT NOT NULL,
     play_time INTEGER NOT NULL DEFAULT 0,
     create_time TEXT NOT NULL,
@@ -194,6 +195,10 @@ async function initializeDatabaseSchema() {
   const xboxColumns = await database.execute('PRAGMA table_info(xbox_game_activity)')
   if (!xboxColumns.rows.some((column) => String(column.name) === 'devices')) {
     await database.execute("ALTER TABLE xbox_game_activity ADD COLUMN devices TEXT NOT NULL DEFAULT '[]'")
+  }
+  const switchColumns = await database.execute('PRAGMA table_info(dwd_switch_game_played_record)')
+  if (!switchColumns.rows.some((column) => String(column.name) === 'metadata_checked_at')) {
+    await database.execute('ALTER TABLE dwd_switch_game_played_record ADD COLUMN metadata_checked_at TEXT')
   }
 }
 

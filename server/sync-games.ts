@@ -47,14 +47,17 @@ async function getHistory(token: AccessToken, progress: Progress) {
   return data
 }
 
-async function getChineseInfo(titleId: string, fallbackName: string, fallbackCover: string | undefined) {
+async function getChineseName(titleId: string) {
   try {
-    const response = await request(`https://ec.nintendo.com/apps/${titleId}/HK`, { headers: { 'User-Agent': userAgent } })
-    if (!response.ok) return { name: fallbackName, cover: fallbackCover || null }
+    const response = await fetch(`https://ec.nintendo.com/apps/${encodeURIComponent(titleId)}/HK`, { headers: { 'User-Agent': userAgent }, signal: AbortSignal.timeout(8_000) })
+    if (!response.ok) return null
     const $ = cheerio.load(await response.text())
-    return { name: $('.o_c-page-title h1').first().text().trim() || fallbackName, cover: $('.o_c-hero-bg__image-inner img').first().attr('src') || fallbackCover || null }
+    const title = $('meta[property="og:title"]').attr('content') || $('title').text()
+    // Only accept a product title, never a region gate or generic Nintendo page.
+    const match = title.trim().match(/^(.+?)\s*[｜|]\s*下載版軟體\s*[｜|]\s*任天堂$/)
+    return match?.[1].trim() || null
   } catch {
-    return { name: fallbackName, cover: fallbackCover || null }
+    return null
   }
 }
 
@@ -66,13 +69,36 @@ export async function syncGames(progress: Progress = () => undefined) {
   const history = await getHistory(token, progress)
   const histories = history.playHistories
   progress(`received ${histories.length} play history records; checking database...`)
-  const rawRows = await database.execute('SELECT title_id, zh_name, zh_cover, SUM(play_time) AS total_play_time, MAX(last_played_at) AS last_played_at FROM dwd_switch_game_played_record GROUP BY title_id')
+  const rawRows = await database.execute('SELECT title_id, zh_name, zh_cover, metadata_checked_at, SUM(play_time) AS total_play_time, MAX(last_played_at) AS last_played_at FROM dwd_switch_game_played_record GROUP BY title_id')
   const previous = new Map(rawRows.rows.map((row) => [String(row.title_id), {
     totalPlayTime: Number(row.total_play_time),
     lastPlayedAt: new Date(String(row.last_played_at)),
     name: row.zh_name ? String(row.zh_name) : null,
     cover: row.zh_cover ? String(row.zh_cover) : null,
+    checkedAt: row.metadata_checked_at ? String(row.metadata_checked_at) : null,
   }]))
+  const timestamp = new Date().toISOString()
+  const info = new Map(histories.map((game) => {
+    const old = previous.get(game.titleId)
+    return [game.titleId, { name: old?.name || game.titleName, cover: game.imageUrl || old?.cover || null, checkedAt: old?.checkedAt || null }]
+  }))
+  const pending = histories.filter((game) => !info.get(game.titleId)?.checkedAt || Date.now() - Date.parse(info.get(game.titleId)!.checkedAt!) > 7 * 86_400_000)
+  let localized = 0
+  for (let offset = 0; offset < pending.length; offset += 4) {
+    progress(`checking HK eShop names: ${offset + 1}–${Math.min(offset + 4, pending.length)}/${pending.length}...`)
+    const results = await Promise.allSettled(pending.slice(offset, offset + 4).map(async (game) => {
+      const name = await getChineseName(game.titleId)
+      const metadata = info.get(game.titleId)!
+      if (name) { metadata.name = name; localized += 1 }
+      metadata.checkedAt = timestamp
+      if (previous.has(game.titleId)) await database.batch([
+        { sql: 'UPDATE dwd_switch_game_played_record SET zh_name = ?, metadata_checked_at = ? WHERE title_id = ?', args: [metadata.name, timestamp, game.titleId] },
+        { sql: 'UPDATE switch_daily_activity SET title = ? WHERE title_id = ?', args: [metadata.name, game.titleId] },
+      ], 'write')
+    }))
+    for (const result of results) if (result.status === 'rejected') throw result.reason
+  }
+  if (pending.length) progress(`HK eShop names checked: ${localized}/${pending.length} matched; keeping existing names for unavailable titles`)
   let inserted = 0
   for (const [index, game] of histories.entries()) {
     const playedAt = new Date(game.lastPlayedAt)
@@ -81,13 +107,12 @@ export async function syncGames(progress: Progress = () => undefined) {
     const delta = Math.max(0, game.totalPlayedMinutes - (old?.totalPlayTime || 0))
     if (old && old.lastPlayedAt.getTime() >= playedAt.getTime() && delta === 0) continue
     progress(`processing ${index + 1}/${histories.length}: ${game.titleName}`)
-    const info = old?.name ? { name: old.name, cover: old.cover || game.imageUrl || null } : await getChineseInfo(game.titleId, game.titleName, game.imageUrl)
-    const timestamp = new Date().toISOString()
+    const metadata = info.get(game.titleId)!
     await database.execute({
       sql: `INSERT INTO dwd_switch_game_played_record
-        (title_id, title_name, zh_name, zh_cover, last_played_at, play_time, create_time, update_time)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-      args: [game.titleId, game.titleName, info.name, info.cover, playedAt.toISOString(), delta, timestamp, timestamp],
+        (title_id, title_name, zh_name, zh_cover, last_played_at, play_time, create_time, update_time, metadata_checked_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      args: [game.titleId, game.titleName, metadata.name, metadata.cover, playedAt.toISOString(), delta, timestamp, timestamp, metadata.checkedAt],
     })
     inserted += 1
   }
@@ -97,7 +122,7 @@ export async function syncGames(progress: Progress = () => undefined) {
     return {
       sql: `INSERT INTO switch_daily_activity (title_id, played_date, title, minutes, synced_at) VALUES (?, ?, ?, ?, ?)
         ON CONFLICT(title_id, played_date) DO UPDATE SET title = excluded.title, minutes = excluded.minutes, synced_at = excluded.synced_at`,
-      args: [game.titleId, date, previous.get(game.titleId)?.name || game.titleName, game.totalPlayedMinutes, new Date().toISOString()],
+      args: [game.titleId, date, info.get(game.titleId)?.name || game.titleName, game.totalPlayedMinutes, timestamp],
     }
   }))
   if (dailyRows.length) {

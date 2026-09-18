@@ -9,8 +9,14 @@ const { syncGames } = await import('../server/sync-games.js')
 const originalFetch = globalThis.fetch
 let minutes = 60
 let malformed = false
+let shopTitle: string | null = null
+let shopRequests = 0
 globalThis.fetch = async (input, init) => {
   const url = String(input)
+  if (url.startsWith('https://ec.nintendo.com/apps/')) {
+    shopRequests += 1
+    return new Response(shopTitle ? `<h1>請確認設定。</h1><meta property="og:title" content="${shopTitle}｜下載版軟體｜任天堂"/>` : '<title>任天堂</title>')
+  }
   if (url.includes('/api/token')) return Response.json({ token_type: 'Bearer', access_token: 'test-access' })
   if (url.includes('/play_histories')) {
     assert.equal(new Headers(init?.headers).get('gentry-locale'), 'en-US')
@@ -34,6 +40,18 @@ try {
   const archive = await listGames()
   assert.equal(archive.length, 1)
   assert.equal(archive[0].minutes, 90)
+  assert.equal(shopRequests, 1, 'missing shop entries are cached, too')
+  shopTitle = '異度神劍2'
+  await database.execute('UPDATE dwd_switch_game_played_record SET metadata_checked_at = NULL')
+  assert.equal((await syncGames()).inserted, 0, 'localization must not create play activity')
+  assert.equal((await listGames())[0].title, shopTitle)
+  assert.equal((await database.execute('SELECT title FROM switch_daily_activity ORDER BY played_date LIMIT 1')).rows[0].title, shopTitle)
+  assert.equal((await syncGames()).inserted, 0)
+  assert.equal(shopRequests, 2, 'names are refreshed independently of play history and then cached')
+  shopTitle = null
+  await database.execute("UPDATE dwd_switch_game_played_record SET metadata_checked_at = '2000-01-01T00:00:00Z'")
+  await syncGames()
+  assert.equal((await listGames())[0].title, '異度神劍2', 'a shop failure cannot erase a stored name')
   malformed = true
   await assert.rejects(syncGames(), /missing playHistories/)
   console.log('Switch sync: locale, repeat sync, increasing minutes and invalid responses passed')
