@@ -82,12 +82,14 @@ export type GameShareReport = {
   from: string
   to: string
   generatedAt: string
+  summary: { gameCount: number; platformCount: number; periodMinutes: number; periodGameCount: number }
   platforms: Array<{
     name: 'Switch' | 'PC' | 'Xbox'
     syncedAt: string | null
     games: Array<{
       id: string
       title: string
+      cover: string | null
       playedAt: string
       minutes: number | null
       timeScope: 'period' | 'lifetime'

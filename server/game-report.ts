@@ -10,14 +10,15 @@ export async function getGameReport(now = new Date()): Promise<GameShareReport> 
   const start = `${from}T00:00:00+08:00`
   const end = now.toISOString()
   const [switchGames, steamGames, xboxGames, pcGames, sync] = await Promise.all([
-    database.execute({ sql: `SELECT title_id, title, SUM(minutes) AS minutes, MAX(played_date) AS played_at
+    database.execute({ sql: `SELECT title_id, title, SUM(minutes) AS minutes, MAX(played_date) AS played_at,
+      (SELECT zh_cover FROM dwd_switch_game_played_record r WHERE r.title_id = switch_daily_activity.title_id ORDER BY last_played_at DESC LIMIT 1) AS cover
       FROM switch_daily_activity WHERE played_date BETWEEN ? AND ?
       GROUP BY title_id HAVING SUM(minutes) > 0 ORDER BY minutes DESC, title_id`, args: [from, to] }),
     database.execute({ sql: `SELECT app_id, name, cover, minutes, played_at FROM steam_game_activity
       WHERE julianday(played_at) BETWEEN julianday(?) AND julianday(?) AND minutes > 0
         AND synced_at = (SELECT fetched_at FROM steam_profile_snapshot WHERE id = 1)
       ORDER BY minutes DESC, app_id`, args: [start, end] }),
-    database.execute({ sql: `SELECT title_id, name, minutes, played_at, achievements, devices FROM xbox_game_activity
+    database.execute({ sql: `SELECT title_id, name, cover, minutes, played_at, achievements, devices FROM xbox_game_activity
       WHERE julianday(played_at) BETWEEN julianday(?) AND julianday(?)
         AND EXISTS (SELECT 1 FROM json_each(devices) WHERE value IN ('Xbox360', 'XboxOne', 'XboxSeries'))
       ORDER BY played_at DESC, title_id`, args: [start, end] }),
@@ -34,12 +35,21 @@ export async function getGameReport(now = new Date()): Promise<GameShareReport> 
     const value = sync.rows.find((row) => row.platform === platform)?.synced_at
     return value ? String(value) : null
   }
-  return { from, to, generatedAt: end, platforms: [
-    { name: 'Switch', syncedAt: syncedAt('Switch'), games: switchGames.rows.map((row) => ({ id: String(row.title_id), title: String(row.title), playedAt: String(row.played_at), minutes: Number(row.minutes), timeScope: 'period' })) },
+  const coverUrl = (id: string, cover: unknown) => cover ? `/api/games/cover?id=${encodeURIComponent(id)}` : null
+  const platforms: GameShareReport['platforms'] = [
+    { name: 'Switch', syncedAt: syncedAt('Switch'), games: switchGames.rows.map((row) => ({ id: String(row.title_id), title: String(row.title), cover: coverUrl(`switch:${row.title_id}`, row.cover), playedAt: String(row.played_at), minutes: Number(row.minutes), timeScope: 'period' })) },
     { name: 'PC', syncedAt: [syncedAt('Steam'), syncedAt('Xbox')].filter((value): value is string => Boolean(value)).sort()[0] || null, games: mergePcGames(
       steamGames.rows.map((row) => ({ appId: Number(row.app_id), name: String(row.name), cover: String(row.cover), playedAt: String(row.played_at), minutes: Number(row.minutes) })),
       pcGames.rows.map((row) => ({ titleId: String(row.title_id), name: String(row.name), cover: row.cover ? String(row.cover) : null, playedAt: String(row.played_at), minutes: row.minutes === null ? null : Number(row.minutes), gamerscore: 0, achievements: 0, devices: ['PC'] })),
-    ).map((game) => ({ id: game.id, title: game.title, playedAt: game.playedAt!, minutes: game.minutes, timeScope: game.timeScope })) },
-    { name: 'Xbox', syncedAt: syncedAt('Xbox'), games: xboxGames.rows.map((row) => ({ id: String(row.title_id), title: String(row.name), playedAt: String(row.played_at), minutes: row.minutes === null ? null : Number(row.minutes), timeScope: 'lifetime', achievements: Number(row.achievements), sharedWithPc: (JSON.parse(String(row.devices)) as string[]).some((device) => device === 'PC' || device === 'Win32') })) },
-  ] }
+    ).map((game) => ({ id: game.id, title: game.title, cover: coverUrl(game.id, game.cover), playedAt: game.playedAt!, minutes: game.minutes, timeScope: game.timeScope })) },
+    { name: 'Xbox', syncedAt: syncedAt('Xbox'), games: xboxGames.rows.map((row) => ({ id: String(row.title_id), title: String(row.name), cover: coverUrl(`xbox:${row.title_id}`, row.cover), playedAt: String(row.played_at), minutes: row.minutes === null ? null : Number(row.minutes), timeScope: 'lifetime', achievements: Number(row.achievements), sharedWithPc: (JSON.parse(String(row.devices)) as string[]).some((device) => device === 'PC' || device === 'Win32') })) },
+  ]
+  const games = platforms.flatMap((platform) => platform.games)
+  const periodGames = games.filter((game) => game.timeScope === 'period' && game.minutes !== null)
+  return { from, to, generatedAt: end, platforms, summary: {
+    gameCount: games.length,
+    platformCount: platforms.filter((platform) => platform.games.length).length,
+    periodMinutes: periodGames.reduce((sum, game) => sum + game.minutes!, 0),
+    periodGameCount: periodGames.length,
+  } }
 }

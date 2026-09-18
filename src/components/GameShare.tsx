@@ -36,8 +36,8 @@ export function GameShare() {
     <dialog ref={dialog} className={styles.dialog} aria-labelledby="game-share-title">
       <header><div><span>EXPORT / PLAY LOG</span><h2 id="game-share-title">最近两周的游戏记录</h2></div><button type="button" aria-label="关闭海报" onClick={() => dialog.current?.close()}><X size={20} /></button></header>
       <div className={styles.preview} aria-busy={busy}>
-        {busy && <p role="status">rendering poster…<br /><small>正在读取记录并生成 PNG</small></p>}
-        {poster && <img src={poster.url} alt="最近两周游戏详情海报，按 Switch、PC、Xbox 分组展示游戏、时长与最后游玩日期" />}
+        {busy && <p role="status">rendering poster…<br /><small>正在读取记录、加载封面并生成 PNG</small></p>}
+        {poster && <img src={poster.url} alt="最近两周游戏详情海报，顶部汇总已知时长、游戏和平台数量，按 Switch、PC、Xbox 分组展示封面、名称、时长与最后游玩日期" />}
         {error && <p role="alert">{error}</p>}
       </div>
       <footer><p>可下载原图，也可在手机上长按保存。</p><div>

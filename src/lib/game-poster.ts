@@ -7,20 +7,30 @@ export async function createGamePoster(report: GameShareReport): Promise<Blob> {
   const mono = '"DM Mono", "Microsoft YaHei", monospace'
   const sans = '"Space Grotesk", "Microsoft YaHei", system-ui, sans-serif'
   await Promise.race([document.fonts.ready, new Promise((resolve) => setTimeout(resolve, 1500))])
+  const covers = new Map<string, HTMLImageElement>()
+  await Promise.allSettled([...new Set(report.platforms.flatMap((group) => group.games.map((game) => game.cover)).filter((url): url is string => Boolean(url)))].map((url) => new Promise<void>((resolve) => {
+    const image = new Image()
+    const done = () => { clearTimeout(timer); image.onload = null; image.onerror = null; resolve() }
+    const timer = setTimeout(() => { image.src = ''; done() }, 12_000)
+    image.onload = () => { covers.set(url, image); done() }
+    image.onerror = done
+    image.src = url
+  })))
   const wrap = (value: string) => {
-    ctx.font = `500 34px ${sans}`
+    ctx.font = `400 32px ${sans}`
     const lines: string[] = []
     let line = ''
     for (const character of value) {
-      if (line && ctx.measureText(line + character).width > 782) { lines.push(line); line = '' }
+      if (line && ctx.measureText(line + character).width > 636) { lines.push(line); line = '' }
       line += character
     }
     lines.push(line)
     return lines
   }
   const groups = report.platforms.map((platform) => ({ ...platform, rows: platform.games.map((game) => ({ ...game, lines: wrap(game.title) })) }))
+  const rowHeight = (lines: string[]) => Math.max(220, 116 + lines.length * 42)
   canvas.width = 1080
-  canvas.height = 558 + groups.reduce((height, group) => height + 128 + (group.rows.length ? group.rows.reduce((sum, row) => sum + 96 + row.lines.length * 44, 0) : 80), 0) + 230
+  canvas.height = 650 + groups.reduce((height, group) => height + 128 + (group.rows.length ? group.rows.reduce((sum, row) => sum + rowHeight(row.lines), 0) : 80), 0) + 230
   const text = (value: string, x: number, y: number, size = 22, color = '#a0a6ad', font = mono) => {
     ctx.font = `400 ${size}px ${font}`
     ctx.fillStyle = color
@@ -30,7 +40,7 @@ export async function createGamePoster(report: GameShareReport): Promise<Blob> {
   const date = (value: string) => value.slice(0, 10).replaceAll('-', '.')
   const playedDate = (value: string) => value.length === 10 ? date(value) : date(new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Shanghai', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(value)))
   const hours = (minutes: number) => minutes < 60 ? `${minutes} min` : `${(minutes / 60).toFixed(1)} h`
-  const total = groups.reduce((sum, group) => sum + group.games.length, 0)
+  const { summary } = report
   const colors = { Switch: '#ff7968', PC: '#79c8f2', Xbox: '#bde985' }
 
   ctx.fillStyle = '#111519'
@@ -42,19 +52,31 @@ export async function createGamePoster(report: GameShareReport): Promise<Blob> {
   text('14D RECAP', 844, 69, 20, '#c8f278')
   line(98)
   text('$ games --recent=14d --share', 64, 153, 23, '#c8f278')
-  text('PLAY. SAVE.', 58, 262, 91, '#f4f3ee', sans)
-  text('REPEAT.', 58, 356, 91, '#f4f3ee', sans)
-  text(`${date(report.from)} — ${date(report.to)}`, 66, 407, 25)
-  line(449)
-  text(String(total).padStart(2, '0'), 64, 510, 42, '#f4f3ee')
-  text('GAMES', 143, 507, 18)
-  text(String(groups.filter((group) => group.games.length).length).padStart(2, '0'), 406, 510, 42, '#f4f3ee')
-  text('PLATFORMS', 485, 507, 18)
-  text('14', 800, 510, 42, '#c8f278')
-  text('DAYS', 879, 507, 18)
-  line(539)
+  text('PLAY. SAVE. REPEAT.', 60, 225, 65, '#f4f3ee', sans)
+  text(`${date(report.from)} — ${date(report.to)}`, 66, 271, 25)
+  ctx.fillStyle = '#1a2025'
+  ctx.fillRect(64, 310, 952, 164)
+  text(summary.periodGameCount ? hours(summary.periodMinutes) : '—', 88, 390, 64, '#c8f278', sans)
+  text('近两周已知时长', 90, 439, 23)
+  text(String(summary.gameCount).padStart(2, '0'), 544, 390, 64, '#f4f3ee', sans)
+  text('游戏记录', 546, 439, 23)
+  text(String(summary.platformCount).padStart(2, '0'), 828, 390, 64, '#f4f3ee', sans)
+  text('游戏平台', 830, 439, 23)
+  text(`${summary.periodGameCount} / ${summary.gameCount} 条记录提供近两周时长 · 不计入累计时长`, 66, 512, 21)
+  let barX = 64
+  ctx.fillStyle = '#2b3035'
+  ctx.fillRect(barX, 549, 952, 8)
+  groups.forEach((group, index) => {
+    const minutes = group.games.reduce((sum, game) => sum + (game.timeScope === 'period' ? game.minutes || 0 : 0), 0)
+    const width = summary.periodMinutes ? minutes / summary.periodMinutes * 952 : 0
+    ctx.fillStyle = colors[group.name]
+    ctx.fillRect(barX, 549, width, 8)
+    barX += width
+    text(`${group.name}  ${group.games.length ? minutes ? hours(minutes) : '时长未计入' : '无记录'}`, 64 + index * 328, 599, 20, colors[group.name])
+  })
+  line(637)
 
-  let y = 558
+  let y = 650
   for (const [index, group] of groups.entries()) {
     const color = colors[group.name]
     text(`0${index + 1}`, 64, y + 59, 20, color)
@@ -68,18 +90,30 @@ export async function createGamePoster(report: GameShareReport): Promise<Blob> {
       y += 80
     }
     for (const [rank, row] of group.rows.entries()) {
-      const height = 96 + row.lines.length * 44
+      const height = rowHeight(row.lines)
       ctx.fillStyle = '#1a2025'
       ctx.fillRect(64, y, 952, height - 12)
       ctx.fillStyle = color
       ctx.fillRect(64, y, 3, height - 12)
-      text(String(rank + 1).padStart(2, '0'), 88, y + 44, 19, color)
-      row.lines.forEach((value, i) => text(value, 152, y + 46 + i * 44, 34, '#f4f3ee', sans))
-      const metaY = y + 48 + row.lines.length * 44
+      ctx.fillStyle = '#111519'
+      ctx.fillRect(84, y + 16, 176, 176)
+      const cover = row.cover ? covers.get(row.cover) : undefined
+      if (cover) {
+        const scale = Math.min(176 / cover.naturalWidth, 176 / cover.naturalHeight)
+        const width = cover.naturalWidth * scale
+        const imageHeight = cover.naturalHeight * scale
+        ctx.drawImage(cover, 84 + (176 - width) / 2, y + 16 + (176 - imageHeight) / 2, width, imageHeight)
+      } else {
+        text(Array.from(row.title).slice(0, 2).join('').toUpperCase(), 107, y + 108, 48, color, sans)
+        text('NO COVER', 116, y + 145, 13, '#727d86')
+      }
+      text(String(rank + 1).padStart(2, '0'), 966, y + 35, 16, color)
+      row.lines.forEach((value, i) => text(value, 292, y + 49 + i * 42, 32, '#f4f3ee', sans))
+      const metaY = y + 67 + row.lines.length * 42
       const time = row.minutes === null ? '时长未提供' : `${hours(row.minutes)} · ${row.timeScope === 'period' ? '近两周' : '累计'}`
       const achievement = row.achievements === undefined ? '' : `  /  ${row.achievements} 成就（累计）`
-      text(time + achievement, 152, metaY, 21, color)
-      text(`${playedDate(row.playedAt)}${row.sharedWithPc ? ' · Xbox / PC 共享记录' : ''}`, 152, metaY + 28, 17)
+      text(time + achievement, 292, metaY, 21, color)
+      text(`${playedDate(row.playedAt)}${row.sharedWithPc ? ' · Xbox / PC 共享记录' : ''}`, 292, metaY + 32, 17)
       y += height
     }
   }

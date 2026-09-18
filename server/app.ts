@@ -6,6 +6,7 @@ import { deleteCookie, getCookie, setCookie } from 'hono/cookie'
 import { mediaCompleteInputSchema, mediaUploadInputSchema, postInputSchema } from '../shared/types.js'
 import { listGames } from './db.js'
 import { getGameReport } from './game-report.js'
+import { getGameCover } from './game-cover.js'
 import { getStoredFitnessSnapshot, getStoredSteamSnapshot, getStoredXboxSnapshot } from './platform-store.js'
 import { repository } from './repository.js'
 import { listSyncRuns } from './sync-run-store.js'
@@ -102,6 +103,7 @@ app.get('/api/games/share', async (c) => {
   c.header('Cache-Control', 'no-store')
   return c.json(await getGameReport())
 })
+app.get('/api/games/cover', (c) => getGameCover(c.req.query('id') || ''))
 app.get('/api/fitness', async (c) => c.json(await getStoredFitnessSnapshot().catch(() => null) || { weight: null, weightUnit: 'kg', sessions: 0, minutes: 0, planName: null, todayName: null, fetchedAt: new Date().toISOString(), recentActions: [], message: 'no fitness sync yet - run npm run sync:platforms' }))
 app.get('/api/steam', async (c) => c.json(await getStoredSteamSnapshot().catch(() => null) || { configured: Boolean(process.env.STEAM_API_KEY && process.env.STEAM_ID), profile: null, playTimeMinutes: 0, games: [], fetchedAt: new Date().toISOString(), message: 'no Steam sync yet - run npm run sync:platforms' }))
 app.get('/api/xbox', async (c) => c.json(await getStoredXboxSnapshot().catch(() => null) || { configured: false, profile: null, state: 'Unknown', currentGame: null, games: [], fetchedAt: new Date().toISOString(), message: 'no Xbox sync yet - run npm run sync:platforms' }))
