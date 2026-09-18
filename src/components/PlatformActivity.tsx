@@ -28,11 +28,11 @@ export function SteamActivity({ data, pcGames = [] }: { data: SteamSnapshot | nu
             <div><span><Clock3 />{featured.timeScope === 'period' ? '2 WEEKS' : 'LIFETIME'}<strong>{featured.minutes === null ? 'unavailable' : `${(featured.minutes / 60).toFixed(1)} h`}</strong></span></div>
           </div>
         </div> : <p className={styles.platformMessage}>{data?.message || 'no recent PC games'}</p>}
-        <footer className={styles.steamFooter}><span>STEAM</span><span>SELECT</span><span>•••</span></footer>
+        {games.length > 1 && <div className={styles.pcLibrary} aria-label="选择 PC 游戏">{games.map((game) => <button type="button" key={game.id} aria-pressed={game.id === featured?.id} onClick={() => setSelectedId(game.id)} title={game.title}><small>{game.source}</small><span>{game.title}</span></button>)}</div>}
+        <footer className={styles.steamFooter}><span>STEAM</span><span>A · SELECT</span><span>•••</span></footer>
       </div>
       <div className={`${styles.deckGrip} ${styles.deckRight}`} aria-hidden="true"><span className={styles.deckShoulder} /><span className={styles.deckButtons}><i data-key="Y" /><i data-key="X" /><i data-key="B" /><i data-key="A" /></span><span className={styles.deckStick} /><span className={styles.deckTrackpad} /><span className={styles.deckSpeaker} /><span className={styles.deckMenu} /></div>
     </div>
-    {games.length > 1 && <div className={styles.pcLibrary} aria-label="选择 PC 游戏">{games.map((game) => <button type="button" key={game.id} aria-pressed={game.id === featured?.id} onClick={() => setSelectedId(game.id)}><small>{game.source}</small><span>{game.title}</span></button>)}</div>}
   </section>
 }
 
